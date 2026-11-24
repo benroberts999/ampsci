@@ -482,6 +482,8 @@ private:
 public:
   CorrelationPotential &operator=(const CorrelationPotential &) = default;
   CorrelationPotential(const CorrelationPotential &) = default;
+  CorrelationPotential &operator=(CorrelationPotential &&) = default;
+  CorrelationPotential(CorrelationPotential &&) = default;
   ~CorrelationPotential() = default;
 
   //

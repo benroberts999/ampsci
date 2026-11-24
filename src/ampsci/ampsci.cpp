@@ -376,7 +376,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "always uses g parts internally; this sets whether they are kept in "
       "the final Sigma [default: true if Feynman and Breit included in HF, "
       "otherwise false]"},
-     {"include_Breit", "Inlcude two-body Breit corrections into Sigma [false]"},
+     {"include_B2",
+      "Include two-body Breit (B2) corrections into Sigma [false]"},
      {"n_max_Breit",
       "Maximum n for excited states to include in two-body Breit "
       "correction to Correlation potential [<=0, means entire basis]"},
@@ -390,7 +391,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "difference (step 0.01 au) of the full Sigma [false]"},
      {"print_de",
       "For each valence state, print MBPT(2) energy correction (direct, "
-      "exchange, total), and <v|Sigma|v> using the stored Sigma [false]"},
+      "exchange, total), and <v|Sigma|v> using the stored Sigma [true]"},
      {"tail_extrapolation",
       "Experimental. Extrapolate "
       "Sigma as a local polarisation potential a_eff/r^4 beyond rmax (if "
@@ -429,8 +430,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto include_G =
     input.get({"Correlations"}, "include_G",
               sigma_Feynman && wf.vHF() && wf.vHF()->vBreit());
+  // include_Breit: previous name of include_B2, still accepted
   const auto include_Breit =
-    input.get({"Correlations"}, "include_Breit", false);
+    input.get({"Correlations"}, "include_B2",
+              input.get({"Correlations"}, "include_Breit", false));
   const auto n_max_Breit = input.get({"Correlations"}, "n_max_Breit", -1);
   // force sigma_omre to be always -ve
   const auto omre_default =
@@ -502,7 +505,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto sigma_derivative =
     input.get({"Correlations"}, "derivative", false);
 
-  const auto print_de = input.get({"Correlations"}, "print_de", false);
+  const auto print_de = input.get({"Correlations"}, "print_de", true);
 
   const auto tail_extrapolation =
     input.get({"Correlations"}, "tail_extrapolation", false);

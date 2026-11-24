@@ -1510,8 +1510,11 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
               // F_a^mu(r_1) sum_t [q^k (g^{t nu} o [pa_gex]^t)]_12
               ComplexRMatrix qk_g_Gamma(zero);
               for (auto t = 0ul; t < num_sp; ++t) {
-                qk_g_Gamma +=
-                  qk * mult_elements(g.radial(t, nu), Gamma.pa_gex[t](k, ig));
+                const auto &Gamma_pa_gex = Gamma.pa_gex[t](k, ig);
+                if (Gamma_pa_gex) {
+                  qk_g_Gamma +=
+                    qk * mult_elements(g.radial(t, nu), *Gamma_pa_gex);
+                }
               }
               for (auto mu = 0ul; mu < num_sp; ++mu) {
                 dSigma[mu] += mult_rows_full(qk_g_Gamma, Fa.component(mu));
@@ -1526,7 +1529,10 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
               }
               const auto qk_Fa_g = qk * Fa_g;
               for (auto mu = 0ul; mu < num_sp; ++mu) {
-                dSigma[mu] += mult_elements(Gamma.gex_pa[mu](k, ig), qk_Fa_g);
+                const auto &Gamma_gex_pa = Gamma.gex_pa[mu](k, ig);
+                if (Gamma_gex_pa) {
+                  dSigma[mu] += mult_elements(*Gamma_gex_pa, qk_Fa_g);
+                }
               }
             }
 
@@ -1599,8 +1605,10 @@ Feynman::GammaQ Feynman::exchange_Gamma_q(int kv, std::size_t ic,
   const auto ka = Fa.kappa();
 
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
-  const LinAlg::Matrix<ComplexRMatrix> zeros(num_ks, num_kappas, zero);
-  GammaQ Gamma{std::vector(num_sp, zeros), std::vector(num_sp, zeros)};
+  // Each (k, gamma) is formed when first added to: most vanish by the
+  // angular selection rules
+  const LinAlg::Matrix<std::optional<ComplexRMatrix>> none(num_ks, num_kappas);
+  GammaQ Gamma{std::vector(num_sp, none), std::vector(num_sp, none)};
 
   for (auto ik = 0ul; ik < num_kappas; ++ik) {
     const auto kappa = Angular::kindex_to_kappa(ik);
@@ -1654,10 +1662,20 @@ Feynman::GammaQ Feynman::exchange_Gamma_q(int kv, std::size_t ic,
               weight * L_exchange(int(k), l, kv, kappa, ka, kg, sixj);
             for (auto t = 0ul; t < num_sp; ++t) {
               if (L_pa_gex != 0.0) {
-                Gamma.pa_gex[t](k, ig) += L_pa_gex * gexFaq_plus[t];
+                auto &Gamma_pa_gex = Gamma.pa_gex[t](k, ig);
+                if (Gamma_pa_gex) {
+                  *Gamma_pa_gex += L_pa_gex * gexFaq_plus[t];
+                } else {
+                  Gamma_pa_gex = L_pa_gex * gexFaq_plus[t];
+                }
               }
               if (L_gex_pa != 0.0) {
-                Gamma.gex_pa[t](k, ig) += L_gex_pa * gexFaq_minus[t];
+                auto &Gamma_gex_pa = Gamma.gex_pa[t](k, ig);
+                if (Gamma_gex_pa) {
+                  *Gamma_gex_pa += L_gex_pa * gexFaq_minus[t];
+                } else {
+                  Gamma_gex_pa = L_gex_pa * gexFaq_minus[t];
+                }
               }
             }
           }

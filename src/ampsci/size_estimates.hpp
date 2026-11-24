@@ -59,6 +59,10 @@ struct SizeEstimates {
 
   //! One entry per requested (J, parity)
   std::vector<CIBlock> ci_blocks{};
+
+  //! Memory of the Feynman-method correlation potential (GB); zero if not
+  //! formed. See @ref Feynman_memory_GB
+  double Feynman_GB{0.0};
 };
 
 /*!
@@ -97,3 +101,18 @@ struct SizeEstimates {
 */
 void print_size_estimates(const SizeEstimates &estimates,
                           std::ostream &os = std::cout);
+
+/*!
+  @brief Rough memory (GB) of the Feynman-method correlation potential
+  (Correlations{} with Feynman = true), from the input.
+  @details
+  Its large objects are complex matrices on the Sigma sub-grid. Counted: the
+  Q*Pi*Q tables and, for the Feynman exchange (exchange = Feynman), the
+  valence-line Green's functions, the matrices held by each thread (scales
+  with the number of threads), and the stored loop Green's functions
+  (store_gex). The frequency grid is estimated from Z.
+
+  @param input  The full ampsci input.
+  @return Memory in GB; zero if the Feynman method is not used.
+*/
+[[nodiscard]] double Feynman_memory_GB(const IO::InputBlock &input);

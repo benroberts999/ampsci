@@ -712,8 +712,9 @@ private:
     When screening, q^l is the numeric line of Sigma_exchange,
     q^l + (1 + f_k) bar-q^l(w). gex is Vhp(a)-dressed when hole_particle.
   */
+  // Only the (k, gamma) allowed by the angular selection rules are formed
   struct GammaQ {
-    std::vector<LinAlg::Matrix<ComplexRMatrix>> pa_gex, gex_pa;
+    std::vector<LinAlg::Matrix<std::optional<ComplexRMatrix>>> pa_gex, gex_pa;
   };
   // ic indexes the core state within m_core_index. Uses the stored gex
   // (calculate_gex), else solves them. fk: effective screening factors of
@@ -745,6 +746,8 @@ private:
 public:
   Feynman &operator=(const Feynman &) = default;
   Feynman(const Feynman &) = default;
+  Feynman &operator=(Feynman &&) = default;
+  Feynman(Feynman &&) = default;
   ~Feynman() = default;
 };
 

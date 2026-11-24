@@ -156,8 +156,10 @@ CorrelationPotential::CorrelationPotential(
         << "Including one-body (B1) Breit (via basis/Green's function)\n";
     }
     if (m_HF->vBreit() && m_includeBreit_b2) {
-      std::cout << "Including two-body Breit [B2] correction: up to n="
-                << m_n_max_breit << ", using Goldstone\n";
+      std::cout << "Including two-body Breit [B2] correction, ";
+      if (m_n_max_breit >= 0)
+        std::cout << "(up to n=" << m_n_max_breit << ") ";
+      std::cout << "using Goldstone\n";
     }
 
     printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "

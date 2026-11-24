@@ -13,6 +13,7 @@
 #include "fmt/format.hpp"
 #include "fmt/ostream.hpp"
 #include "qip/String.hpp"
+#include "qip/omp.hpp"
 #include "version/version.hpp"
 #include <algorithm>
 #include <memory>
@@ -52,6 +53,8 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
     }
   }
   out.num_orbitals = basis.size();
+
+  out.Feynman_GB = Feynman_memory_GB(input);
 
   // The integral counts loop over all sets of four orbitals, and can take a
   // while: each reports as it starts, and the time it took (timer, at the end
@@ -228,6 +231,12 @@ void print_size_estimates(const SizeEstimates &estimates, std::ostream &os) {
     print_table("B^k (Breit)", e.bk, true);
   }
 
+  if (e.Feynman_GB > 0.0) {
+    fmt::print(os, "{:<22} {:>14} {:>7.1f} GB\n", "Sigma (Feynman)", "",
+               e.Feynman_GB);
+    total_GB += e.Feynman_GB;
+  }
+
   // CI blocks are solved one at a time: the largest counts in the total
   double largest_block_GB = 0.0;
   if (!e.ci_blocks.empty()) {
@@ -245,4 +254,95 @@ void print_size_estimates(const SizeEstimates &estimates, std::ostream &os) {
   }
   fmt::print(os, "\nTotal: ~{:.1f} GB in memory\n",
              total_GB + largest_block_GB);
+}
+
+//==============================================================================
+
+double Feynman_memory_GB(const IO::InputBlock &input) {
+  using namespace std::string_literals;
+
+  // Same options and defaults as the run
+  const auto all_order = input.get({"Correlations"}, "all_order", false);
+  if (!input.getBlock({"Correlations"}) ||
+      !input.get({"Correlations"}, "Feynman", all_order)) {
+    return 0.0;
+  }
+
+  // Sigma sub-grid: every stride-th point of the radial grid
+  const auto r0 = input.get({"Grid"}, "r0", 1.0e-6);
+  const auto rmax = input.get({"Grid"}, "rmax", 120.0);
+  const auto du = input.get<double>({"Grid"}, "du");
+  const auto num_points = du ? 0ul : input.get({"Grid"}, "num_points", 2000ul);
+  const auto b = input.get({"Grid"}, "b", rmax / 3.0);
+  const auto grid_type = (b <= r0 || b >= rmax) ?
+                           "logarithmic" :
+                           input.get({"Grid"}, "type", "loglinear"s);
+  const Grid grid{
+    GridParameters{num_points, r0, rmax, b, grid_type, du ? *du : 0}};
+  const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
+  const auto sigma_rmax =
+    std::min(input.get({"Correlations"}, "rmax", 30.0), grid.rmax());
+  const auto default_stride =
+    std::max(2, int(grid.getIndex(30.0) - grid.getIndex(1.0e-4)) / 200);
+  const auto stride = std::size_t(
+    std::max(1, input.get({"Correlations"}, "stride", default_stride)));
+  const auto subgrid_points =
+    (grid.getIndex(sigma_rmax) - grid.getIndex(sigma_rmin)) / stride + 1;
+
+  // Core orbitals in the polarisation loops; partial waves; multipoles
+  const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
+  std::size_t num_core = 0;
+  int l_max_core = 0;
+  for (const auto &shell :
+       AtomData::core_parser(input.get({"HartreeFock"}, "core", "[]"s))) {
+    l_max_core = std::max(l_max_core, shell.l);
+    if (shell.n >= n_min_core) {
+      num_core += shell.l == 0 ? 1 : 2;
+    }
+  }
+  const auto l_max = input.get({"Correlations"}, "lmax", 6);
+  const auto num_kappas = std::size_t(2 * std::max(l_max, l_max_core)) + 1;
+  const auto num_k = num_kappas + 1;
+
+  // Frequency grid: w0 * ratio^i, up to twice the deepest core energy
+  // included (taken as hydrogen-like), and at least 5000 au
+  const auto imag_omega =
+    input.get({"Correlations"}, "imag_omega", std::vector{0.01, 1.5});
+  const auto w0 = imag_omega.size() == 2 ? imag_omega[0] : 0.01;
+  const auto w_ratio = imag_omega.size() == 2 ? imag_omega[1] : 1.5;
+  const auto Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
+  const auto e_core_deepest =
+    0.5 * double(Z * Z) / double(n_min_core * n_min_core);
+  const auto w_max = std::max(2.0 * w_ratio * e_core_deepest, 5000.0);
+  const auto num_w =
+    std::size_t(std::log(w_ratio * w_max / w0) / std::log(w_ratio)) + 2;
+
+  // With the small components (Breit, or include_G), a Green's function has
+  // four blocks, and a spinor two components
+  const auto include_G = input.get({"Correlations"}, "include_G", false) ||
+                         input.get({"HartreeFock"}, "Breit", false) ||
+                         input.get({"HartreeFock"}, "Breit", 0.0) != 0.0;
+  const auto num_blocks = include_G ? 4ul : 1ul;
+  const auto num_components = include_G ? 2ul : 1ul;
+
+  // Number of complex sub-grid matrices held:
+  // Q*Pi*Q, and a second table without screening (for the fk)
+  auto num_matrices = 2 * num_w * num_k;
+  const auto exchange = qip::ci_compare(
+    input.get({"Correlations"}, "exchange", "Goldstone"s), "Feynman");
+  if (exchange) {
+    // Valence-line Green's functions
+    num_matrices += num_w * num_kappas * num_blocks;
+    // Each thread: two terms, for each partial wave and each multipole that
+    // can join it to a core orbital (at most l_max_core + 1)
+    num_matrices += std::size_t(omp_get_max_threads()) * 2 * num_components *
+                    num_kappas * std::size_t(l_max_core + 1);
+    // Stored loop Green's functions: e_a + w and e_a - w
+    if (input.get({"Correlations"}, "store_gex", true)) {
+      num_matrices += 2 * num_w * num_core * num_kappas * num_blocks;
+    }
+  }
+
+  return 16.0 * double(subgrid_points * subgrid_points) * double(num_matrices) *
+         1.0e-9;
 }
