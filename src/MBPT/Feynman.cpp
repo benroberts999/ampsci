@@ -14,6 +14,7 @@
 #include "qip/omp.hpp"
 #include <algorithm>
 #include <cassert>
+#include <limits>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -841,8 +842,122 @@ double gex_memory_GB(std::size_t num_w, std::size_t num_core,
 }
 
 //==============================================================================
+std::optional<double> hp_excited_energy(const HF::HartreeFock &hf,
+                                        const DiracSpinor &Fa, int kappa) {
+  using namespace qip::overloads;
+
+  // Solves [H_hf + (1-P) V (1-P)] F = e F, V = -y^0_aa, for the lowest
+  // excited state. The local part of V goes with the local potential; the
+  // rest, -P V F, with the exchange (inhomogeneous) term. The solution is
+  // then orthogonal to the core, so the right projector is not required.
+
+  constexpr int max_iterations = 64;
+  constexpr double eps_target = 1.0e-7;
+  // Energy is only needed to locate a pole: accept if not fully converged
+  constexpr double eps_accept = 1.0e-3;
+  constexpr double damping = 0.4;
+
+  const auto &core = hf.core();
+  const auto l = Angular::l_k(kappa);
+
+  // Lowest excited state: first n above the core states of this kappa
+  int n = l + 1;
+  for (const auto &Fc : core) {
+    if (Fc.kappa() == kappa) {
+      n = std::max(n, Fc.n() + 1);
+    }
+  }
+
+  const auto y0aa = Coulomb::yk_ab(0, Fa, Fa);
+  const auto v_local = hf.vlocal(l) - y0aa;
+  const auto Hmag = hf.Hmag(l);
+  // The excited electron sees one fewer core electron
+  const auto zion = hf.zion() + 1.0;
+
+  const auto found = [](const DiracSpinor &F) {
+    // boundState sets eps to 1 (wrong number of nodes) or infinity (failed)
+    return std::isfinite(F.eps()) && F.eps() < 1.0 && F.en() < 0.0;
+  };
+
+  // Initial solution: local potential only, hydrogen-like energy guess
+  const auto n_effective = 2.0 + 0.5 * l;
+  const auto en_guess = -0.5 * zion * zion / (n_effective * n_effective);
+  DiracSpinor Fm(n, kappa, hf.grid_sptr());
+  DiracODE::boundState(Fm, en_guess, v_local, Hmag, hf.alpha(), 1.0e-14);
+  if (!found(Fm))
+    return std::nullopt;
+
+  auto eps = 1.0;
+  for (int it = 0; it < max_iterations; ++it) {
+    auto VxFm = hf.vexFa(Fm) + hf.VBr(Fm);
+    // -P V F = + sum_c |c> <c| y^0_aa |F>
+    const auto y0Fm = y0aa * Fm;
+    for (const auto &Fc : core) {
+      if (Fc.kappa() == kappa) {
+        VxFm += (Fc * y0Fm) * Fc;
+      }
+    }
+
+    const auto Fm_prev = Fm;
+    DiracODE::boundState(Fm, Fm.en(), v_local, Hmag, hf.alpha(), 1.0e-14, &VxFm,
+                         &Fm_prev, zion);
+    if (!found(Fm))
+      return std::nullopt;
+
+    eps = std::abs((Fm.en() - Fm_prev.en()) / Fm.en());
+    if (eps < eps_target)
+      break;
+
+    Fm = (1.0 - damping) * Fm + damping * Fm_prev;
+    Fm.normalise();
+  }
+
+  if (eps > eps_accept)
+    return std::nullopt;
+  return Fm.en();
+}
+
+//==============================================================================
+double lowest_hp_excitation(const HF::HartreeFock &hf, int n_min_core) {
+
+  // Excited states with l <= 3 only: higher l are nearly hydrogenic, and
+  // never the lowest
+  constexpr std::size_t num_kappas = 7;
+
+  // Polarised core states, outermost (highest energy) first
+  std::vector<const DiracSpinor *> holes;
+  for (const auto &Fa : hf.core()) {
+    if (Fa.n() >= n_min_core) {
+      holes.push_back(&Fa);
+    }
+  }
+  std::sort(holes.begin(), holes.end(),
+            [](const auto *a, const auto *b) { return a->en() > b->en(); });
+
+  auto lowest_excitation = std::numeric_limits<double>::max();
+  auto lowest_energy = 0.0;
+  for (const auto *Fa : holes) {
+    // The excited energies depend only weakly on the hole, so deeper holes
+    // have larger excitation energies. Stop once they cannot be the lowest,
+    // even were the excited state twice as bound as any found so far
+    if (2.0 * lowest_energy - Fa->en() > lowest_excitation)
+      break;
+
+    for (std::size_t ik = 0; ik < num_kappas; ++ik) {
+      const auto en = hp_excited_energy(hf, *Fa, Angular::kindex_to_kappa(ik));
+      if (!en)
+        continue;
+      lowest_energy = std::min(lowest_energy, *en);
+      lowest_excitation = std::min(lowest_excitation, *en - Fa->en());
+    }
+  }
+  return lowest_excitation;
+}
+
+//==============================================================================
 double best_omre(const std::vector<DiracSpinor> &core,
-                 const std::vector<DiracSpinor> &valence, bool print) {
+                 const std::vector<DiracSpinor> &valence, bool print,
+                 std::optional<double> hp_excitation) {
   // Real part of frequency Re{omega} = omre:
   // should sit as far as possible from the poles.
   // The poles:
@@ -854,10 +969,13 @@ double best_omre(const std::vector<DiracSpinor> &core,
   //    at omre <= -Delta. The numerical core subtraction in gex is
   //    imperfect, leaving weak fictitious poles at the core-core
   //    differences, omre = -|e_b - e_a|.
+  //  - With the hole-particle interaction, the excited states of the loop
+  //    are more bound (they see the core with a hole), so its poles lie
+  //    closer to zero: at omre <= -hp_excitation.
   // So with Delta = e_lowest_excited - e_core_max, the window (-Delta, 0)
-  // is free of true poles for the lowest valence state; inside it are only
-  // the fictitious core-difference poles and the small e_m - e_v
-  // differences.
+  // [or (-hp_excitation, 0), if smaller] is free of true poles for the
+  // lowest valence state; inside it are only the fictitious
+  // core-difference poles and the small e_m - e_v differences.
   // Returns the midpoint of the largest pole-free gap. One omre serves all
   // valence states (the window is set by the lowest one; the others only
   // add near-zero poles, which the gap search avoids).
@@ -876,11 +994,15 @@ double best_omre(const std::vector<DiracSpinor> &core,
   const auto Delta = e_v_min - e_core_max;
   if (Delta <= 0.0)
     return omre_default;
+  // Lower edge of the window: the first loop pole
+  const auto window = hp_excitation && *hp_excitation > 0.0 ?
+                        std::min(Delta, *hp_excitation) :
+                        Delta;
 
   // Keep only poles inside the window; sort; drop duplicates
   const auto tidy = [=](std::vector<double> &list) {
     list.erase(std::remove_if(list.begin(), list.end(),
-                              [=](double w) { return w < -Delta || w > 0.0; }),
+                              [=](double w) { return w < -window || w > 0.0; }),
                list.end());
     std::sort(list.begin(), list.end());
     list.erase(
@@ -891,7 +1013,7 @@ double best_omre(const std::vector<DiracSpinor> &core,
 
   // True poles: the window ends, and the Green's-function (valence-line)
   // poles omre = e_m - e_v (excited states below e_v)
-  std::vector<double> true_poles{-Delta, 0.0};
+  std::vector<double> true_poles{-window, 0.0};
   for (const auto &Fv : valence) {
     for (const auto &Fm : valence) {
       true_poles.push_back(Fm.en() - Fv.en());
@@ -918,7 +1040,7 @@ double best_omre(const std::vector<DiracSpinor> &core,
   tidy(poles);
 
   // Best omre: midpoint of the largest gap between consecutive poles
-  auto best = -0.5 * Delta;
+  auto best = -0.5 * window;
   auto best_gap = 0.0;
   for (auto i = 1ul; i < poles.size(); ++i) {
     const auto gap = poles[i] - poles[i - 1];
@@ -932,6 +1054,10 @@ double best_omre(const std::vector<DiracSpinor> &core,
   if (print) {
     fmt::print("\nFeynman contour:\n");
     fmt::print("Delta = {:.4f}\n", Delta);
+    if (hp_excitation) {
+      fmt::print("Lowest loop excitation with hole-particle = {:.4f}\n",
+                 *hp_excitation);
+    }
     if (print_all_true_poles) {
       fmt::print("True poles in window (valence-valence):\n  ");
       for (const auto w : true_poles) {
@@ -939,7 +1065,7 @@ double best_omre(const std::vector<DiracSpinor> &core,
       }
     } else {
       if (true_poles.size() >= 2) {
-        // True poles includes one *at* Delta, rest between 0.0 and next
+        // True poles includes the window edge, rest between 0.0 and next
         fmt::print("True poles in window (valence-valence):\n  ");
         fmt::print("{} poles between {:.4f} and 0.0", true_poles.size() - 1,
                    true_poles.at(1));

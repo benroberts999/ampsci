@@ -1,4 +1,5 @@
 #include "CorrelationPotential.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracODE/include.hpp"
 #include "Feynman.hpp"
 #include "Goldstone.hpp"
@@ -196,6 +197,51 @@ TEST_CASE("MBPT: Feynman unit tests", "[MBPT][Feynman][unit]") {
     REQUIRE(FyS.screening_fk(v, v.en() + 0.01) == fk_S);
   }
   std::cout << "\n";
+}
+
+//==============================================================================
+TEST_CASE("MBPT: Feynman hole-particle contour", "[MBPT][Feynman][unit]") {
+
+  // With the hole-particle interaction, the excited states of the
+  // polarisation loop see the core with a hole in a. Their energies must lie:
+  //  - below the first-order value, e_m - <m|y^0_aa|m> (variational bound),
+  //  - above 4.5 e_m (a doubly charged ion binds a hydrogen-like state 4x
+  //    as much; penetrating states less): excludes core-like solutions.
+  // The frequency contour must then lie inside the narrower window.
+
+  Wavefunction wf({1000, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
+                  {"Na", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+  wf.solve_valence("3sp3d");
+  const auto &hf = *wf.vHF();
+
+  // Outermost core state: gives the lowest excitation
+  const auto &Fa = *std::max_element(
+    wf.core().cbegin(), wf.core().cend(),
+    [](const auto &a, const auto &b) { return a.en() < b.en(); });
+  const auto y0aa = Coulomb::yk_ab(0, Fa, Fa);
+
+  auto lowest_expected = 1.0e9;
+  for (const auto &Fm : wf.valence()) {
+    const auto en_hp = MBPT::hp_excited_energy(hf, Fa, Fm.kappa());
+    REQUIRE(en_hp.has_value());
+    const auto en_first_order = Fm.en() - Fm * (y0aa * Fm);
+    REQUIRE(*en_hp < en_first_order);
+    REQUIRE(*en_hp > 4.5 * Fm.en());
+    lowest_expected = std::min(lowest_expected, *en_hp - Fa.en());
+  }
+
+  const auto hp_excitation = MBPT::lowest_hp_excitation(hf, 1);
+  REQUIRE(hp_excitation == Approx(lowest_expected));
+
+  const auto Delta =
+    DiracSpinor::min_En(wf.valence()) - DiracSpinor::max_En(wf.core());
+  REQUIRE(hp_excitation < Delta);
+
+  const auto omre =
+    MBPT::best_omre(wf.core(), wf.valence(), false, hp_excitation);
+  REQUIRE(omre < 0.0);
+  REQUIRE(omre > -hp_excitation);
 }
 
 //==============================================================================

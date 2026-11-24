@@ -440,9 +440,14 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     input.get({"Correlations"}, "include_B2",
               input.get({"Correlations"}, "include_Breit", false));
   const auto n_max_Breit = input.get({"Correlations"}, "n_max_Breit", -1);
+  // With the hole-particle interaction, the loop poles lie closer to zero
+  const auto hp_excitation =
+    sigma_Feynman && hole_particle && wf.vHF() && !wf.core().empty() ?
+      std::optional{MBPT::lowest_hp_excitation(*wf.vHF(), n_min_core)} :
+      std::nullopt;
   // force sigma_omre to be always -ve
   const auto omre_default =
-    MBPT::best_omre(wf.core(), wf.valence(), sigma_Feynman);
+    MBPT::best_omre(wf.core(), wf.valence(), sigma_Feynman, hp_excitation);
   const auto sigma_omre =
     -std::abs(input.get({"Correlations"}, "real_omega", omre_default));
 

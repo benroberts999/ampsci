@@ -798,6 +798,49 @@ double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
                   int kappa_gamma, const Angular::SixJTable &sixj);
 
 /*!
+  @brief Energy of the lowest excited state of given kappa, with the
+  hole-particle interaction for a hole in core state @p Fa.
+
+  @details
+  Lowest eigenvalue, among the excited states, of
+  \f[
+    h_{\rm HF} - (1-P)\,y^0_{aa}\,(1-P),
+  \f]
+  with P the projector onto the core: the Hartree-Fock Hamiltonian with the
+  hole-particle potential of Feynman::green_excited. The excited electron
+  sees the core with a hole in a, so is more bound than the Hartree-Fock
+  excited state.
+
+  @param hf     Hartree-Fock (core, potential, grid)
+  @param Fa     Core state of the hole
+  @param kappa  Kappa of the excited state
+
+  @return The energy; nullopt if no such bound state was found.
+*/
+std::optional<double> hp_excited_energy(const HF::HartreeFock &hf,
+                                        const DiracSpinor &Fa, int kappa);
+
+/*!
+  @brief Lowest excitation energy of the polarisation loop with the
+  hole-particle interaction.
+
+  @details
+  With the hole-particle interaction, the poles of the polarisation loop
+  lie at \f$ \pm(\varepsilon^{(a)}_m - \varepsilon_a) \f$, with
+  \f$ \varepsilon^{(a)}_m \f$ the excited energies in the potential with
+  a hole in a (see hp_excited_energy): closer to zero than the Hartree-Fock
+  differences. Returns the smallest, over the polarised core states a and
+  the excited states with l <= 3. Used to place the frequency contour (see
+  best_omre).
+
+  @param hf          Hartree-Fock (core, potential, grid)
+  @param n_min_core  Minimum n of core states in the polarisation loop
+
+  @return \f$ \min_{a,m}(\varepsilon^{(a)}_m - \varepsilon_a) \f$
+*/
+double lowest_hp_excitation(const HF::HartreeFock &hf, int n_min_core);
+
+/*!
   @brief Best real part of the frequency, omre, for the direct diagram.
 
   @details
@@ -812,14 +855,23 @@ double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
   basis/spectrum needed (a typical valence energy is assumed if the list is
   empty). One omre serves all valence states.
 
-  @param core     Core states
-  @param valence  Valence states (lowest sets the window)
-  @param print    Print Delta, the in-window poles, and the chosen omre
+  With the hole-particle interaction the loop poles lie closer to zero, and
+  the window is \f$ (-\Delta_{\rm hp}, 0) \f$, with
+  \f$ \Delta_{\rm hp} \f$ = @p hp_excitation (if smaller than
+  \f$ \Delta \f$).
+
+  @param core           Core states
+  @param valence        Valence states (lowest sets the window)
+  @param print          Print Delta, the in-window poles, and the chosen omre
+  @param hp_excitation  Lowest loop excitation energy with the hole-particle
+                        interaction (see lowest_hp_excitation); none: no
+                        hole-particle interaction
 
   @return Midpoint of the largest pole-free gap.
 */
 double best_omre(const std::vector<DiracSpinor> &core,
-                 const std::vector<DiracSpinor> &valence, bool print = false);
+                 const std::vector<DiracSpinor> &valence, bool print = false,
+                 std::optional<double> hp_excitation = std::nullopt);
 
 /*!
   @brief Memory (GB) of the stored loop Green's functions (Feynman exchange).
