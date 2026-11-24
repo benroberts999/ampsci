@@ -342,7 +342,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"fk", "List of doubles. Screening factors for effective all-order "
             "exchange. In Feynman method, used in exchange only (and G-part); "
             "Goldstone, used direct also. If blank, will calculate them from "
-            "scratch. []"},
+            "scratch. Set 'false' to fix fk = 1 (no screening). []"},
      {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
              "used only for G part; Goldstone, used in direct also. []"},
      {"exchange",
@@ -481,7 +481,13 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto separate_lambda =
     input.get({"Correlations"}, "separate_lambda", false);
 
-  const auto fk = input.get({"Correlations"}, "fk", std::vector<double>{});
+  // Screening factors fk: explicit list used as given; 'false' fixes fk = 1
+  // (no screening, and none calculated); blank: calculated (Feynman method
+  // with screening)
+  const auto fk_string = input.get({"Correlations"}, "fk", std::string{});
+  const auto fk = qip::ci_compare(fk_string, "false") ?
+                    std::vector<double>{1.0} :
+                    input.get({"Correlations"}, "fk", std::vector<double>{});
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
   // Exchange diagrams: method (Goldstone / Feynman), and whether the
   // screening is applied to both Coulomb lines (Goldstone2 / Feynman)

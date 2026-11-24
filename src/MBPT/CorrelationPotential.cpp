@@ -162,10 +162,10 @@ CorrelationPotential::CorrelationPotential(
       std::cout << "using Goldstone\n";
     }
 
-    printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
-           "stride=%i]\n",
-           vHF->grid().r(m_i0), vHF->grid().r(m_i0 + m_stride * (m_size - 1)),
-           int(m_size), int(m_i0), int(m_stride));
+    fmt::print("Sigma sub-grid: r=({:.1e}, {:.1f})aB with {} points. "
+               "[stride={}]\n",
+               vHF->grid().r(m_i0),
+               vHF->grid().r(m_i0 + m_stride * (m_size - 1)), m_size, m_stride);
     if (m_tail_extrapolation) {
       std::cout << "Sigma extrapolated beyond sub-grid as a_eff/r^4 "
                    "(experimental)\n";
@@ -638,8 +638,8 @@ void CorrelationPotential::setup_Feynman() {
       m_Fy->form_qpiq(m_fname);
     }
     if (m_feynman_exchange && m_Fy->screening() && m_fk.empty()) {
-      // Reference for the effective screening factors; the polarisation loop
-      // re-uses the gex
+      // Reference for the effective screening factors: formed along with
+      // Q*Pi*Q, so this only reads the cache when Q*Pi*Q itself was read
       m_Fy->calculate_qpiq_unscreened();
     }
   }

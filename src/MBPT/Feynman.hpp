@@ -331,7 +331,9 @@ public:
 
     @details
     With @p ident, reads from the disk cache if a matching file exists, else
-    forms and writes it (see read_qpiq/write_qpiq).
+    forms and writes it (see read_qpiq/write_qpiq). With screening, the
+    unscreened Q*Pi*Q (see calculate_qpiq_unscreened) is formed and written
+    at the same time, from the same polarisation loop.
   */
   void form_qpiq(const std::string &ident = "");
 
@@ -369,7 +371,8 @@ public:
 
   //! Ensures the unscreened Q*Pi*Q (same hp) exists, the reference for the
   //! effective screening factors (screening_fk): no-op without screening,
-  //! or if already formed; else reads its disk cache, or forms it from the
+  //! or if already formed (it is formed with the screened Q*Pi*Q, see
+  //! form_qpiq); else reads its disk cache, or forms it from the
   //! polarisation loop (cheap when the loop gex are present, see
   //! calculate_gex) and writes the cache
   void calculate_qpiq_unscreened();

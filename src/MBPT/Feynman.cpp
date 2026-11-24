@@ -1097,8 +1097,12 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname,
     }
   }
 
-  const auto rw_str = !readQ ? "Written QPQ to " : "Read QPQ from ";
-  std::cout << rw_str << "file: " << fname << "\n";
+  const auto options = screened && m_hole_particle ? " (w/ scr + hp)" :
+                       screened                    ? " (w/ scr)" :
+                       m_hole_particle             ? " (w/ hp)" :
+                                                     "";
+  fmt::print("{} QPQ{} {} file: {}\n", readQ ? "Read" : "Written", options,
+             readQ ? "from" : "to", fname);
   return true;
 }
 
@@ -1174,8 +1178,19 @@ void Feynman::form_qpiq(const std::string &ident) {
     return;
   // The polarisation loop re-uses the cached gex when present (see
   // calculate_gex); otherwise it solves (and discards) its own
-  form_qpiq(polarisation_wk());
+  const auto pi_wk = polarisation_wk();
+  form_qpiq(pi_wk);
   write_qpiq(ident);
+  // With screening, the unscreened Q*Pi*Q (reference for the effective
+  // screening factors, see screening_fk) differs only in the X factor, so
+  // is formed from the same polarisation loop
+  if (m_screen_Coulomb) {
+    m_qpiq_wk_unscreened = qpiq_from_pi(pi_wk, false);
+    const auto fname = cache_filename(ident, "qpq", false);
+    if (!fname.empty()) {
+      readwrite_qpiq(IO::FRW::write, fname, m_qpiq_wk_unscreened, false);
+    }
+  }
 }
 
 //==============================================================================
