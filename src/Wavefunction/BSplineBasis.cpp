@@ -548,6 +548,14 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
     }
+    // The splines are exactly zero beyond the cavity: end the state at its
+    // last non-zero point, so integrals do not run over the zero tail
+    auto last_nonzero = Fi.grid().num_points();
+    while (last_nonzero != 0 && Fi.f(last_nonzero - 1) == 0.0 &&
+           Fi.g(last_nonzero - 1) == 0.0) {
+      --last_nonzero;
+    }
+    Fi.max_pt() = last_nonzero;
     // Enforce f > 0 at small r: find first significant amplitude
     {
       const auto &fv = Fi.f();
