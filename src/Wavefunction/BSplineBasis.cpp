@@ -46,7 +46,7 @@ Parameters::Parameters(IO::InputBlock input)
             "comma-separated list, last value used for all higher l "
             "[1.0e-4; Johnson and Fischer: 3.0e-4,1.0e-4,1.0e-3,1.0e-3,"
             "1.0e-2]"},
-     {"rmax", "maximum cavity radius [40.0]"},
+     {"rmax", "maximum cavity radius [40.0/sqrt(Zion)]"},
      {"states", "states to keep (e.g., 30spdf20ghi)"},
      {"nlmax", "n_max, l_max: states to keep for every l up to l_max that "
                "is not listed in states (e.g., 15, 20) [none]"},

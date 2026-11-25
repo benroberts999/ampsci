@@ -103,6 +103,19 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto nucleus = Nuclear::form_nucleus(atom_Z, atom_A, nucleus_options);
 
   //----------------------------------------------------------------------------
+  // The orbitals are more compact for ions: the default radii (grid, basis
+  // cavity, Sigma) scale as 1/sqrt(Zion), with Zion = Z - N_core
+  const auto core = input.get({"HartreeFock"}, "core", "[]"s);
+  auto core_terms = core;
+  std::replace(core_terms.begin(), core_terms.end(), ':', ',');
+  int num_core_electrons = 0;
+  for (const auto &config : AtomData::core_parser(core_terms)) {
+    num_core_electrons += config.num;
+  }
+  const auto Zion = std::max(1, atom_Z - num_core_electrons);
+  const auto radius_scale = 1.0 / std::sqrt(double(Zion));
+
+  //----------------------------------------------------------------------------
   // Grid: Get + setup grid parameters
   input.check(
     {"Grid"},
@@ -110,22 +123,22 @@ Wavefunction ampsci(const IO::InputBlock &input) {
           "equations and storing oritals. All relevant quantities are in "
           "units of Bohr radius (aB)."},
      {"r0", "Initial grid point, in aB [1.0e-6]"},
-     {"rmax", "Finial grid point [120.0]"},
+     {"rmax", "Finial grid point [120.0/sqrt(Zion)]"},
      {"num_points", "Number of grid points [2000]"},
      {"type", "Type of grid: loglinear, logarithmic, linear [loglinear]"},
      {"b", "Only used for loglinear: grid is ~ logarithmic for r<b, "
-           "linear for r>b [rmax/3]"},
+           "linear for r>b [30.0/sqrt(Zion)]"},
      {"du", "du is uniform grid step size; set this instead of "
             "num_points - will override num_points [default set by "
             "num_points]. Rarely used."}});
 
   // Radial grid. Shared resource used by all wavefunctions/orbitals etc
   const auto r0 = input.get({"Grid"}, "r0", 1.0e-6);
-  const auto rmax = input.get({"Grid"}, "rmax", 120.0);
+  const auto rmax = input.get({"Grid"}, "rmax", 120.0 * radius_scale);
   const auto du = input.get<double>({"Grid"}, "du");
   // if num_points = 0, uses du.
   const auto num_points = du ? 0ul : input.get({"Grid"}, "num_points", 2000ul);
-  const auto b = input.get({"Grid"}, "b", rmax / 3.0);
+  const auto b = input.get({"Grid"}, "b", 30.0 * radius_scale);
   const auto grid_type = (b <= r0 || b >= rmax) ?
                            "logarithmic" :
                            input.get({"Grid"}, "type", "loglinear"s);
@@ -182,7 +195,6 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "defaults will be used. By default, this option is false, unless the "
       "RadPot{} block exists, in which case it is true"}});
 
-  const auto core = input.get({"HartreeFock"}, "core", "[]"s);
   const auto HF_method = input.get({"HartreeFock"}, "method", "HartreeFock"s);
   const auto eps_HF = input.get({"HartreeFock"}, "eps", 1.0e-14);
   const auto tf_Breit = input.get({"HartreeFock"}, "Breit", false);
@@ -292,7 +304,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // Construct B-spline basis (options checked by SplineBasis::Parameters):
   const auto basis_input = input.getBlock("Basis");
   if (basis_input) {
-    wf.formBasis(*basis_input);
+    auto basis_params = SplineBasis::Parameters(*basis_input);
+    // Default cavity radius scales with the extent of the orbitals
+    basis_params.rmax = basis_input->get("rmax", 40.0 * radius_scale);
+    wf.formBasis(basis_params);
     if (input.get({"Basis"}, "print", false) && !wf.basis().empty()) {
       std::cout << "Basis:\n";
       wf.printBasis(wf.basis());
@@ -335,9 +350,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "parameters of Sigma. false => do not read or write to disk. Or give "
       "the full filename directly. [true]"},
      {"rmin", "minimum radius to calculate sigma for [1.0e-4]"},
-     {"rmax", "maximum radius to calculate sigma for [30.0]"},
+     {"rmax", "maximum radius to calculate sigma for [30.0/sqrt(Zion)]"},
      {"stride", "Only calculate Sigma every <stride> points. Default such "
-                "that there are 200 points between (1e-4, 30)"},
+                "that there are 200 points between the default rmin and "
+                "rmax"},
      {"ek{}", "Block: Explicit list of energies to solve for. e.g., "
               "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. Takes "
               "precidence over each_valence. [blank]"},
@@ -411,15 +427,20 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
   // const auto n_min_core_F =
   //     input.get({"Correlations"}, "n_min_core_F", n_min_core);
-  const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
+  const auto default_sigma_rmin = 1.0e-4;
+  const auto default_sigma_rmax = 30.0 * radius_scale;
+  const auto sigma_rmin =
+    input.get({"Correlations"}, "rmin", default_sigma_rmin);
   // Sigma sub-grid cannot extend beyond the full radial grid
-  const auto sigma_rmax =
-    std::min(input.get({"Correlations"}, "rmax", 30.0), wf.grid().rmax());
+  const auto sigma_rmax = std::min(
+    input.get({"Correlations"}, "rmax", default_sigma_rmax), wf.grid().rmax());
   const auto each_valence = input.get({"Correlations"}, "each_valence", false);
   const auto default_stride = [&]() {
-    // By default, choose stride such that there is 200 points over [1e-4,30]
-    const auto stride =
-      int(wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-4)) / 200;
+    // By default, choose stride such that there are 200 points between the
+    // default rmin and rmax
+    const auto stride = int(wf.grid().getIndex(default_sigma_rmax) -
+                            wf.grid().getIndex(default_sigma_rmin)) /
+                        200;
     return (stride <= 2) ? 2 : stride;
   }();
   const auto sigma_stride =
@@ -576,7 +597,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_in) {
     // Constructing the parameters checks the input (and prints any help)
-    const SplineBasis::Parameters spectrum_params(*spectrum_in);
+    SplineBasis::Parameters spectrum_params(*spectrum_in);
+    spectrum_params.rmax = spectrum_in->get("rmax", 40.0 * radius_scale);
     if (!spectrum_in->has_option("help")) {
       wf.formSpectrum(spectrum_params);
       if (input.get({"Spectrum"}, "print", false) && !wf.spectrum().empty()) {
