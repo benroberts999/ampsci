@@ -80,6 +80,11 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   // Z is taken as a string, so can write "Cs" or "55"
   const auto atom_Z = AtomData::atomic_Z(atom_block.get("Z", "H"s));
+  if (atom_Z <= 0) {
+    fmt::print("Got Z = {}: nonsense. Did you pass invalid input file?\n",
+               atom_Z);
+    return {};
+  }
   // A: is a "std::optional<int>" (if blank, nucleus will use default value)
   const auto atom_A = atom_block.get<int>("A");
 
