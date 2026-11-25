@@ -2171,50 +2171,33 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
 //======================== EXCHANGE SR DIAGRAMS ========================
 //======================================================================
 
-// double L_ang_exchSR_GGP(int K, int k, int l, int ka, int kb, int kc) {
-//   // Angular Factor for
-//   // Struct Rad diagram of the form PGG
+ComplexGMatrix Feynman::GammaFw(int kv, double env, int kw,
+                                const DiracSpinor *Fw) const {
 
-//   // This is the Diagram GGP
-//   // const auto K = 1; //rank of operator
-//   const auto tj_ka = Angular::twoj_k(ka);
-//   const auto tj_kb = Angular::twoj_k(kb);
-//   const auto tj_kc = Angular::twoj_k(kc);
-//   const auto sjs = Angular::sixj_2(2 * K, 2 * l, 2 * k, tj_kb, tj_ka, tj_kc);
+  ComplexGMatrix Gma_Fw(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+  const auto Iunit = std::complex<double>{0.0, 1.0};
+  const auto &core = m_HF->core();
+  for (auto ia = 0ul; ia < core.size(); ++ia) {
+    const auto &Fa = core[m_core_index[ia]];
+    const auto ea_minus_w = std::complex<double>{Fa.en()} - omega;
+    const auto ea_plus_w = std::complex<double>{Fa.en()} + omega;
+    const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
+    const auto Pa = m_pa[ia];
+    const auto Gex_minus = m_include_G ?
+                             green_excited(kv, env - omega, Fa_hp) :
+                             green_excited(kv, env - omega, Fa_hp).drop_g();
+    const auto Gex_plus = m_include_G ? green_excited(kv, env + omega, Fa_hp) :
+                                        green_excited(kv, env + omega).drop_g();
+    const auto Gex_plusFw = Gex_plus * Fw;
+    const auto PaFw = Pa * Fw;
 
-//   const auto Ck_aB = Angular::Ck_kk(k, ka, kb);
-//   const auto Cl_BC = Angular::Ck_kk(l, kb, kc);
-//   const auto s = Angular::neg1pow(k + l + 1);
-//   return s * Ck_aB * Cl_BC * sjs;
-// }
+    Gma_Fw += mult_cols_by(Pa, Gex_plusFw) + mult_cols_by(Gex_minus, PaFw);
+  }
 
-// double L_ang_exchSR_GPG(int K, int k, int l, int ka, int kb, int kc) {
-//   // Angular Factor for the exchange Struct Rad diagram of the form GPG
-//   // const auto K = 1; //rank of operator
-//   const auto tj_ka = Angular::twoj_k(ka);
-//   const auto tj_kb = Angular::twoj_k(kb);
-//   const auto tj_kc = Angular::twoj_k(kc);
-//   const auto sjs = Angular::sixj_2(2 * K, 2 * k, 2 * l, tj_kb, tj_ka, tj_kc);
-//   const auto Ck_CB = Angular::Ck_kk(k, kc, kb);
-//   const auto Cl_Ba = Angular::Ck_kk(l, kb, ka);
-//   const auto s = Angular::neg1pow(k + l + 1);
-//   return s * Ck_CB * Cl_Ba * sjs;
-// }
+  return Gma_Fw;
+}
 
-// double L_ang_exchSR_PGG(int K, int k, int l, int ka, int kb, int kc) {
-//   // Angular Factor for the exchange SR diagram of the form PGG
-//   const auto tj_ka = Angular::twoj_k(ka);
-//   const auto tj_kb = Angular::twoj_k(kb);
-//   const auto tj_kc = Angular::twoj_k(kc);
-//   const auto sjs = Angular::sixj_2(2 * K, 2 * k, 2 * l, tj_kb, tj_ka, tj_kc);
-
-//   const auto Ck_Ca = Angular::Ck_kk(k, kc, ka);
-//   const auto Cl_aB = Angular::Ck_kk(l, ka, kb);
-//   const auto s = Angular::neg1pow(k + l + 1);
-//   return s * Ck_Ca * Cl_aB * sjs;
-// }
-
-// GMatrix Feynman::Sigma_SR_exchange(int kv, double env, int kw,
+// GMatrix Feynman::Sigma_SR_exchange_BC(int kv, double env, int kw,
 //                                    double Omega) const {
 //   // Coded for dipole operator,
 //   // kappa_v, en, kappa_w, Omega-> external field
