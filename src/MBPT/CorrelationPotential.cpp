@@ -610,6 +610,14 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
 }
 
 //==============================================================================
+
+void CorrelationPotential::clear_gex() {
+  if (m_Fy) {
+    m_Fy->clear_gex();
+  }
+}
+
+//==============================================================================
 void CorrelationPotential::setup_Feynman() {
 
   // Goldstone: for the exchange diagrams (unless those are also Feynman), and

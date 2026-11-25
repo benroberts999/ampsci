@@ -400,6 +400,12 @@ public:
   const Feynman *feynman() const { return m_Fy ? &*m_Fy : nullptr; }
 
   /*!
+    @brief Releases the stored loop Green's functions of the Feynman
+           exchange (see Feynman::clear_gex): only needed while forming Sigma.
+  */
+  void clear_gex();
+
+  /*!
     @brief Constructs a Feynman object with the sub-grid and parameters of
            this Sigma, with the given screening and hole-particle options.
 

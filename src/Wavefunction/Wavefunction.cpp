@@ -660,6 +660,10 @@ void Wavefunction::formSigma(
     }
   }
 
+  // The Feynman exchange loop Green's functions are only needed while forming
+  // Sigma (read back from disk, or recalculated, if needed again)
+  m_Sigma->clear_gex();
+
   m_Sigma->print_tail(m_valence);
 
   if (!lambdas.empty()) {

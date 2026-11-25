@@ -371,6 +371,16 @@ public:
   void calculate_gex();
 
   /*!
+    @brief Releases the stored loop gex (see calculate_gex).
+
+    @details
+    They are only needed while Sigma is formed, and are often the largest
+    memory use of the run. If needed again, calculate_gex reads them back
+    from the disk cache, or calculates them.
+  */
+  void clear_gex();
+
+  /*!
     @brief Forms Q*Pi*Q (with screening, if set) from given polarisation op.
 
     @details

@@ -1550,6 +1550,13 @@ void Feynman::calculate_gex() {
 }
 
 //==============================================================================
+
+void Feynman::clear_gex() {
+  m_gex_wak.clear();
+  m_gex_wak.shrink_to_fit();
+}
+
+//==============================================================================
 Feynman::GexPair Feynman::loop_gex(std::size_t iw, std::size_t ic,
                                    std::size_t ik) const {
   const auto &Fa = m_HF->core()[m_core_index[ic]];
