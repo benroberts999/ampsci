@@ -34,7 +34,7 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
 void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-    {{"min_n_core", "lowest core n to include [1]"},
+    {{"n_min_core", "lowest core n to include [1]"},
      {"basis", "Basis string specifying which states to include; must be a "
                "subset of full "
                "basis), e.g. '30spdf'. Default: include entire excited basis."},
@@ -86,7 +86,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Ladder Diagrams\n\n";
 
   // Get input
-  const auto min_n_core = input.get("min_n_core", 1);
+  // (min_n_core: former name, still read)
+  const auto min_n_core = input.get("n_min_core", input.get("min_n_core", 1));
   const auto basis_str = input.get<std::string>("basis", "");
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", false);

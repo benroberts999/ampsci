@@ -18,7 +18,8 @@ namespace ExternalField {
 std::unique_ptr<CorePolarisation>
 make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
          const HF::HartreeFock *vhf, bool print,
-         const std::vector<DiracSpinor> &basis, const std::string &identity) {
+         const std::vector<DiracSpinor> &basis, const std::string &identity,
+         int n_min_core) {
 
   // Parse method for RPA:
   auto rpa_method = ExternalField::ParseMethod(method);
@@ -44,12 +45,13 @@ make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
     if (print)
       std::cout << "TDHF/basis method (" << DiracSpinor::state_config(basis)
                 << ")\n";
-    dV = std::make_unique<ExternalField::TDHFbasis>(h, vhf, basis);
+    dV = std::make_unique<ExternalField::TDHFbasis>(h, vhf, basis, n_min_core);
   } else if (rpa_method == ExternalField::Method::diagram) {
     if (print)
       std::cout << "diagram method (" << DiracSpinor::state_config(basis)
                 << ")\n";
-    dV = std::make_unique<ExternalField::DiagramRPA>(h, basis, vhf, identity);
+    dV = std::make_unique<ExternalField::DiagramRPA>(h, basis, vhf, identity,
+                                                     true, n_min_core);
   } else if (rpa_method == ExternalField::Method::cntm) {
     if (print)
       std::cout

@@ -86,7 +86,9 @@ void dynamicPolarisability(const IO::InputBlock &input,
                  "blank will not use QkTable; if exists, will read it in; if "
                  "doesn't exist, will create it and write to disk. If 'true' "
                  "will use default filename"},
-     {"n_minmax", "list; min,max n for core/excited (internal): [1,inf]"},
+     {"n_min_core", "Minimum n for core states in the diagrams [1]"},
+     {"basis", "Basis used for the internal lines of the diagrams, "
+               "e.g., 30spdf [full basis]"},
      {"n_max_legs",
       "SR+N is applied to matrix elements whose states both have n <= this "
       "(the valence legs, and the low-n intermediate states). SR+N is only "
@@ -240,9 +242,17 @@ void dynamicPolarisability(const IO::InputBlock &input,
   const auto sr_norm = SR_input.get("norm", true);
   const auto rpa_in_SR = rpaQ && SR_input.get("RPA_in_SR", false);
   if (t_SR_input) {
-    const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
-    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    // Internal lines of the diagrams: core states with n >= n_min_core, and
+    // the given subset of the basis. (n_minmax: former option, still read)
+    const auto n_minmax = SR_input.get("n_minmax", std::vector{1, 999});
+    const auto n_min =
+      SR_input.get("n_min_core", n_minmax.size() > 0 ? n_minmax[0] : 1);
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+    const auto sr_basis_string = SR_input.get<std::string>("basis");
+    const auto sr_basis =
+      sr_basis_string ?
+        DiracSpinor::subset(wf.basis(), *sr_basis_string, false) :
+        wf.basis();
     const auto Qk_file_t = SR_input.get("Qk_file", std::string{"false"});
     const std::string Qk_file =
       Qk_file_t != "false" ?
@@ -257,8 +267,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
       std::cout << "Not including RPA in SR+N\n";
     }
     std::cout << std::flush;
-    sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+    sr = MBPT::StructureRad(sr_basis, wf.FermiLevel(), {n_min, n_max}, Qk_file);
     sr->solve_core(&he1, rpa_in_SR ? &dVE1 : nullptr);
   }
 

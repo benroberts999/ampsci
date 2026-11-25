@@ -59,7 +59,7 @@ namespace ExternalField {
   Stores required W^k integrals (only those which are required).
   Writes them to disk by default.
   This can use significant memory, particularly for large basis.
-  At the moment, always uses full basis -- this may optionally change in the future.
+  Uses the basis it is given: pass a subset to use a smaller one.
 
   ---
 
@@ -119,11 +119,12 @@ public:
     @param atom   Atom label used to form the W-matrix cache filename;
                   pass an empty string to disable file I/O
     @param print  If true, prints progress information to stdout
+    @param n_min_core  Only core states with n >= @p n_min_core are polarised
   */
   DiagramRPA(const DiracOperator::TensorOperator *const h,
              const std::vector<DiracSpinor> &basis,
              const HF::HartreeFock *in_hf, const std::string &atom = "",
-             bool print = true);
+             bool print = true, int n_min_core = 1);
 
   //! @brief Constructs DiagramRPA by reusing W matrices from an existing instance
   DiagramRPA(const DiracOperator::TensorOperator *const h,

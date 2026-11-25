@@ -275,6 +275,8 @@ public:
   @param print     If true, print a brief description of the chosen method.
   @param basis     Basis set for basis/diagram methods (ignored for TDHF).
   @param identity  Identifier string passed to DiagramRPA (e.g. for caching).
+  @param n_min_core  Minimum core n to polarise, for basis/diagram methods
+                     (ignored for TDHF).
 
   @return Unique pointer to the constructed CorePolarisation object, or
           nullptr if RPA is disabled.
@@ -286,6 +288,6 @@ public:
 make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
          const HF::HartreeFock *vhf, bool print = false,
          const std::vector<DiracSpinor> &basis = {},
-         const std::string &identity = "");
+         const std::string &identity = "", int n_min_core = 1);
 
 } // namespace ExternalField

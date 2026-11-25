@@ -9,6 +9,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
+#include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/format.hpp"
 #include "fmt/ostream.hpp"
@@ -40,7 +41,13 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   constexpr double e_Fermi = -1.5;
   int N_max_core = 0;
   std::vector<DiracSpinor> basis;
-  for (const auto &[n_max, kappa] : AtomData::n_kappa_list(out.basis_string)) {
+  const auto nlmax_in = input.get({"Basis"}, "nlmax", std::vector<int>{});
+  const auto nlmax = nlmax_in.size() == 2 ?
+                       std::pair{nlmax_in[0], nlmax_in[1]} :
+                       std::pair{0, -1};
+  for (const auto &nk : SplineBasis::states_list(out.basis_string, nlmax)) {
+    const auto n_max = nk.n;
+    const auto kappa = nk.k;
     const auto l = Angular::l_k(kappa);
     for (int n = l + 1; n <= n_max; ++n) {
       auto &Fn = basis.emplace_back(n, kappa, grid);

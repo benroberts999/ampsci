@@ -105,7 +105,17 @@ rpa_options{
     // Damping factor - be careful with this [0.35]
   max_iterations;
     // Maximum number of iterations. 1 should correspond to
-    // first-order RPA [100]
+    // first-order RPA [128]
+  anderson;
+    // TDHF only: solve by Anderson mixing (true) or damped
+    // iteration (false); if it does not converge, the other
+    // is tried [true]
+  n_min_core;
+    // diagram and basis methods only: Minimum core n to
+    // polarise [1]
+  basis;
+    // diagram and basis methods only: basis used for RPA,
+    // e.g., 30spdf [full basis]
 }
 
 // Available StructureRadiation options/blocks
@@ -120,8 +130,11 @@ StructureRadiation{
     // disk. If 'true' will use default filename. Save time
     // (10x) at cost of memory. Note: Using QkTable implies
     // basis states used for diagram legs [true]
-  n_minmax;
-    // list; min,max n for core/excited: [1,inf]
+  n_min_core;
+    // Minimum n for core states in the diagrams [1]
+  basis;
+    // Basis used for the internal lines of the diagrams,
+    // e.g., 30spdf [full basis]
   k_cut;
     // Maximum multipolarity k to include in Coulomb Qk.
     // Default: all

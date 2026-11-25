@@ -27,15 +27,16 @@ public:
     @param h     External field operator.
     @param hf    @ref HF::HartreeFock object defining the core.
     @param basis Single-particle basis used to expand \f$ \varphi^a_\pm \f$.
-                 Core (occupied) states are dropped; only the excited states
-                 are used.
+                 The full basis is used, core (occupied) states included.
+    @param n_min_core Only core states with n >= @p n_min_core are polarised.
   */
   TDHFbasis(const DiracOperator::TensorOperator *const h,
             const HF::HartreeFock *const hf,
-            const std::vector<DiracSpinor> &basis);
+            const std::vector<DiracSpinor> &basis, int n_min_core = 1);
 
 private:
   std::vector<DiracSpinor> m_basis{}; // store copy?
+  int m_n_min_core{1};
 
 public:
   //! See TDHF::solve_core(); same notes and warnings apply.

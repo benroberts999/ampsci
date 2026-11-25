@@ -21,18 +21,8 @@ static double round_to_zero(double omega) {
 //==============================================================================
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const HF::HartreeFock *const hf,
-                     const std::vector<DiracSpinor> &basis)
-  : TDHF(h, hf) {
-
-  // Only the excited (unoccupied) states: excitations into the core are
-  // Pauli forbidden
-  const auto &core = hf->core();
-  for (const auto &Fn : basis) {
-    if (std::find(core.cbegin(), core.cend(), Fn) == core.cend()) {
-      m_basis.push_back(Fn);
-    }
-  }
-}
+                     const std::vector<DiracSpinor> &basis, int n_min_core)
+  : TDHF(h, hf), m_basis(basis), m_n_min_core(n_min_core) {}
 
 //==============================================================================
 DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
@@ -128,9 +118,12 @@ void TDHFbasis::solve_core(double omega, int max_its, bool print) {
   qip::LiveMessage status(fmt::format("TDHFb {} (w={:.3f}): ", m_h->name(), ww),
                           print);
 
-  // Store 2D indexes, for more efficient //isation
+  // Store 2D indexes, for more efficient //isation.
+  // Only core states with n >= n_min_core are polarised (the rest stay zero)
   std::vector<std::pair<std::size_t, std::size_t>> indexs;
   for (auto ic = 0ul; ic < m_core.size(); ic++) {
+    if (m_core[ic].n() < m_n_min_core)
+      continue;
     for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
       indexs.emplace_back(ic, beta);
     }
@@ -166,6 +159,8 @@ void TDHFbasis::solve_core(double omega, int max_its, bool print) {
     double eps_bottom = 0.0;
     double worst = 0.0;
     for (auto ic = 0ul; ic < m_core.size(); ic++) {
+      if (m_core[ic].n() < m_n_min_core)
+        continue;
       for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
         const auto &Xx = tmp_X[ic][beta];
         const auto &oldX = m_X[ic][beta];

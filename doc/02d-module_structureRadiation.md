@@ -94,8 +94,11 @@ Module::StructureRadiation{
     // disk. If 'true' will use default filename. Save time
     // (10x) at cost of memory. Note: Using QkTable implies
     // legs=basis
-  n_minmax;
-    // list; min,max n for core/excited: (1,inf)dflt
+  n_min_core;
+    // Minimum n for core states in the diagrams [1]
+  basis;
+    // Basis used for the internal lines of the diagrams,
+    // e.g., 30spdf [full basis]
   k_cut;
     // Maximum multipolarity k to include in Coulomb Qk.
     // Default: all

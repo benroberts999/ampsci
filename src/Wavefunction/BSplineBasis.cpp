@@ -31,6 +31,10 @@ Parameters::Parameters(IO::InputBlock input)
     type(parseSplineType(input.get<std::string>("type", "Derevianko"))),
     orthogonalise(input.get("orthogonalise", false)),
     verbose(input.get("verbose", true)) {
+  const auto nlmax_in = input.get("nlmax", std::vector<int>{});
+  if (nlmax_in.size() == 2) {
+    nlmax = {nlmax_in[0], nlmax_in[1]};
+  }
   // The same options are used for both the Basis and Spectrum blocks
   input.check(
     {{"", "Options for 'Basis' and 'Spectrum'. Spectrum is the same as "
@@ -44,6 +48,8 @@ Parameters::Parameters(IO::InputBlock input)
             "1.0e-2]"},
      {"rmax", "maximum cavity radius [40.0]"},
      {"states", "states to keep (e.g., 30spdf20ghi)"},
+     {"nlmax", "n_max, l_max: states to keep for every l up to l_max that "
+               "is not listed in states (e.g., 15, 20) [none]"},
      {"orthogonalise",
       "Force orthogonal to core (Basis) or valence (Spectrum) [false]"},
      {"print", "Print all spline energies (for testing) [false]"},
@@ -69,6 +75,25 @@ Parameters::Parameters(const std::string &istates, std::size_t in,
     verbose(iverbose) {}
 
 //==============================================================================
+std::vector<AtomData::DiracConfig> states_list(const std::string &states,
+                                               std::pair<int, int> nlmax) {
+  auto list = AtomData::listOfStates_singlen(states);
+  const auto [n_max, l_max] = nlmax;
+  for (int l = 0; l <= l_max; ++l) {
+    const auto l_is_listed =
+      std::any_of(list.cbegin(), list.cend(),
+                  [l](const auto &nk) { return Angular::l_k(nk.k) == l; });
+    if (l_is_listed)
+      continue;
+    if (l != 0) {
+      list.emplace_back(n_max, l);
+    }
+    list.emplace_back(n_max, -l - 1);
+  }
+  return list;
+}
+
+//==============================================================================
 std::vector<double> default_r0(SplineType type) {
   switch (type) {
   case SplineType::Johnson:
@@ -90,7 +115,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
   // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 
   const auto &[states_str, n_spl, k_spl, r0_in, rmax_spl, tmp_positron_str,
-               basis_type, ortho, verbose] = params;
+               basis_type, ortho, verbose, nlmax] = params;
 
   // First internal knot for each l; last entry used for all higher l
   const auto r0_list = r0_in.empty() ? default_r0(basis_type) : r0_in;
@@ -101,7 +126,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     tmp_positron_str == "true"  ? states_str :
                                   tmp_positron_str;
 
-  const auto nklst = AtomData::listOfStates_singlen(states_str);
+  const auto nklst = states_list(states_str, nlmax);
   const auto nklst_positron = AtomData::listOfStates_singlen(positron_str);
 
   std::vector<DiracSpinor> basis;
@@ -114,6 +139,10 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
               << ".\n"
                  "Storing: "
               << states_str << " electron states\n";
+    if (nlmax.second >= 0) {
+      std::cout << "and    : n <= " << nlmax.first
+                << " for other l <= " << nlmax.second << "\n";
+    }
     if (!positron_str.empty()) {
       std::cout << "and    : " << positron_str << " -ve energy states\n";
     }

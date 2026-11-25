@@ -69,7 +69,9 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
       "create it and write to disk. If 'true' will use default filename. "
       "Save time (10x) at cost of memory. Note: Using QkTable implies "
       "legs=basis [true]"},
-     {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
+     {"n_min_core", "Minimum n for core states in the diagrams [1]"},
+     {"basis", "Basis used for the internal lines of the diagrams, "
+               "e.g., 30spdf [full basis]"},
      {"k_cut",
       "Maximum multipolarity k to include in Coulomb Qk. Default: all"},
      {"include_core", "If true, includes core states in calculation. Will "
@@ -192,10 +194,16 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "Units: " << h->units() << "\n";
 
-  // min/max n (for core/excited basis)
+  // Internal lines of the diagrams: core states with n >= n_min_core, and
+  // the given subset of the basis. (n_minmax: former option, still read)
   const auto n_minmax = input.get("n_minmax", std::vector{1, 999});
-  const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+  const auto n_min =
+    input.get("n_min_core", n_minmax.size() > 0 ? n_minmax[0] : 1);
   const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+  const auto sr_basis_string = input.get<std::string>("basis");
+  const auto sr_basis =
+    sr_basis_string ? DiracSpinor::subset(wf.basis(), *sr_basis_string, false) :
+                      wf.basis();
 
   // RPA:
   const auto rpa_method_str = input.get("rpa", std::string("true"));
@@ -208,6 +216,8 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Including from n = " << n_min << "\n";
   if (n_max < 999)
     std::cout << "Including to n = " << n_max << "\n";
+  if (sr_basis_string)
+    std::cout << "Using basis: " << *sr_basis_string << "\n";
   if (!fk.empty()) {
     std::cout << "Including effective Coulomb screening, with: fk = ";
     for (const auto &f : fk) {
@@ -271,7 +281,7 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
 
   // Construct SR object (holds basis, Qk integrals, screening):
-  MBPT::StructureRad sr(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file,
+  MBPT::StructureRad sr(sr_basis, wf.FermiLevel(), {n_min, n_max}, Qk_file,
                         k_cut, fk, etak);
   std::cout << std::flush;
 

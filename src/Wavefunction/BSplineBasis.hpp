@@ -1,6 +1,7 @@
 #pragma once
 #include "IO/InputBlock.hpp"
 #include "LinAlg/include.hpp"
+#include "Physics/AtomData.hpp"
 #include "qip/String.hpp"
 #include <memory>
 #include <string>
@@ -180,7 +181,8 @@ struct Parameters {
     @brief Reads parameters from an input block.
 
     @details
-    Input keys [defaults]: states [""], number (n) [30], order (k) [7],
+    Input keys [defaults]: states [""], nlmax [none], number (n) [30],
+    order (k) [7],
     r0 [default_r0(type); comma-separated list, one for each l], rmax [40.0],
     positron [""], type [Derevianko], orthogonalise [false], verbose [true].
   */
@@ -202,7 +204,23 @@ struct Parameters {
   bool orthogonalise{false};
   //! Print construction details to screen
   bool verbose{true};
+  //! {n_max, l_max}: for every l up to l_max that is not listed in states,
+  //! electron states up to n_max are kept (none if l_max < 0)
+  std::pair<int, int> nlmax{0, -1};
 };
+
+/*!
+  @brief The electron states to keep, as {n_max, kappa} for each kappa: those
+  of the states string, then every other l up to l_max.
+  @details
+  e.g., states = "35spd10fghi" with nlmax = {15, 20}: n <= 35 for l = 0-2,
+  n <= 10 for l = 3-6, and n <= 15 for l = 7-20.
+  @param states  Basis string: maximum n for each l listed.
+  @param nlmax   {n_max, l_max}, for each l up to l_max not listed in
+                 @p states (none if l_max < 0).
+*/
+std::vector<AtomData::DiracConfig> states_list(const std::string &states,
+                                               std::pair<int, int> nlmax);
 
 /*!
   @brief Forms and returns the basis orbitals (expanded in terms of splines).

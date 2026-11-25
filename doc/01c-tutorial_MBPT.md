@@ -58,6 +58,9 @@ Basis{
   rmax;
   // states to keep (e.g., 30spdf20ghi)
   states;
+  // n_max, l_max: states to keep for every l up to l_max that is not
+  // listed in states (e.g., 15, 20) [none]
+  nlmax;
   // Force orthogonal to core (Basis) or valence (Spectrum) [false]
   orthogonalise;
   // Print all spline energies (for testing) [false]

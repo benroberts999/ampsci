@@ -240,8 +240,11 @@ StructureRadiation{
     // If blank will not use QkTable; if exists, will read
     // it in; if doesn't exist, will create it and write to
     // disk. If 'true' will use default filename
-  n_minmax;
-    // list; min,max n for core/excited (internal): [1,inf]
+  n_min_core;
+    // Minimum n for core states in the diagrams [1]
+  basis;
+    // Basis used for the internal lines of the diagrams,
+    // e.g., 30spdf [full basis]
   n_max_legs;
     // SR+N is applied to matrix elements whose states both
     // have n <= this (the valence legs, and the low-n

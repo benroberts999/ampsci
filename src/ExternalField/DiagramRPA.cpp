@@ -25,14 +25,13 @@ namespace ExternalField {
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
                        const HF::HartreeFock *in_hf, const std::string &atom,
-                       bool print)
+                       bool print, int n_min_core)
   : CorePolarisation(h), p_hf(in_hf) {
 
   assert(p_hf != nullptr && "Hartree-Fock cannot be null in DiagramRPA");
   assert(h != nullptr && "Operator cannot be null in DiagramRPA");
 
   // Set up basis (split core-excited):
-  const int n_min_core = 1;
   auto [t_holes, t_excited] =
     DiracSpinor::split_by_core(basis, p_hf->core(), n_min_core);
   m_holes = std::move(t_holes);
@@ -48,9 +47,13 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   }
 
   // filename for W^k (Coulmb integrals) output
+  // (n_min_core is part of the name, unless it is 1)
   const auto basis_string = DiracSpinor::state_config(basis);
+  const auto n_min_core_string =
+    n_min_core == 1 ? std::string{} : std::to_string(n_min_core) + "-";
   const auto fname = atom + "_" + std::to_string(m_rank) +
-                     (m_pi == 1 ? "+" : "-") + "_" + basis_string + ".rpad.abf";
+                     (m_pi == 1 ? "+" : "-") + "_" + n_min_core_string +
+                     basis_string + ".rpad.abf";
   const auto do_read_write = atom != "" && atom != "false";
 
   // Attempt to read W's from a file:

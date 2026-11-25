@@ -101,7 +101,9 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                  "blank will not use QkTable; if exists, will read it in; if "
                  "doesn't exist, will create it and write to disk. If 'true' "
                  "will use default filename"},
-     {"n_minmax", "list; min,max n for core/excited (internal): [1,inf]"},
+     {"n_min_core", "Minimum n for core states in the diagrams [1]"},
+     {"basis", "Basis used for the internal lines of the diagrams, "
+               "e.g., 30spdf [full basis]"},
      {"n_max_legs",
       "SR+N is applied to matrix elements whose states both have n <= this "
       "(the valence legs, and the low-n intermediate states). SR+N is only "
@@ -250,9 +252,17 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   if (t_SR_input && use_sos) {
     sr_n_max = SR_input.get("n_max_legs", DiracSpinor::max_n(wf.core()) + 3);
     sr_norm = SR_input.get("norm", true);
-    const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
-    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    // Internal lines of the diagrams: core states with n >= n_min_core, and
+    // the given subset of the basis. (n_minmax: former option, still read)
+    const auto n_minmax = SR_input.get("n_minmax", std::vector{1, 999});
+    const auto n_min =
+      SR_input.get("n_min_core", n_minmax.size() > 0 ? n_minmax[0] : 1);
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+    const auto sr_basis_string = SR_input.get<std::string>("basis");
+    const auto sr_basis =
+      sr_basis_string ?
+        DiracSpinor::subset(wf.basis(), *sr_basis_string, false) :
+        wf.basis();
     const auto Qk_file_t = SR_input.get("Qk_file", "false"s);
     const std::string Qk_file =
       Qk_file_t != "false" ?
@@ -261,8 +271,7 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nIncluding structure radiation"
               << (sr_norm ? " and normalisation:\n" : " (no normalisation):\n");
     fmt::print("Applied to matrix elements with n <= {}\n", sr_n_max);
-    sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+    sr = MBPT::StructureRad(sr_basis, wf.FermiLevel(), {n_min, n_max}, Qk_file);
   }
 
   const auto n_main = input.get("n_main", DiracSpinor::max_n(wf.core()) + 4);

@@ -139,7 +139,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                         "correspond to first-order RPA [128]"},
      {"anderson", "TDHF only: solve by Anderson mixing (true) or damped "
                   "iteration (false); if it does not converge, the other "
-                  "is tried [true]"}});
+                  "is tried [true]"},
+     {"n_min_core",
+      "diagram and basis methods only: Minimum core n to polarise [1]"},
+     {"basis", "diagram and basis methods only: basis used for RPA, e.g., "
+               "30spdf [full basis]"}});
 
   // Structure radiation + normalisation: included only if the block is given
   const auto t_SR_input = input.getBlock("StructureRadiation");
@@ -157,7 +161,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       "create it and write to disk. If 'true' will use default filename. "
       "Save time (10x) at cost of memory. Note: Using QkTable implies basis "
       "states used for diagram legs [true]"},
-     {"n_minmax", "list; min,max n for core/excited: [1,inf]"},
+     {"n_min_core", "Minimum n for core states in the diagrams [1]"},
+     {"basis", "Basis used for the internal lines of the diagrams, "
+               "e.g., 30spdf [full basis]"},
      {"k_cut",
       "Maximum multipolarity k to include in Coulomb Qk. Default: all"},
      {"fk", "list: Coulomb screening factors for each k"},
@@ -226,8 +232,15 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   auto rpa_method_str = input.get("rpa", std::string("true"));
   if (wf.core().empty())
     rpa_method_str = "false";
+  // Only read by the diagram and basis methods
+  const auto rpa_n_min_core = rpa_input.get("n_min_core", 1);
+  const auto rpa_basis_string = rpa_input.get<std::string>("basis");
+  const auto rpa_basis =
+    rpa_basis_string ?
+      DiracSpinor::subset(wf.basis(), *rpa_basis_string, false) :
+      wf.basis();
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
-                                     wf.basis(), wf.identity());
+                                     rpa_basis, wf.identity(), rpa_n_min_core);
 
   const auto rpa_eps = rpa_input.get("eps", 1.0e-16);
   const auto rpa_its = rpa_input.get("max_iterations", 128);
@@ -275,10 +288,17 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << ": Structure radiation requires a basis\n";
       return;
     }
-    // min/max n (for core/excited basis)
+    // Internal lines of the diagrams: core states with n >= n_min_core, and
+    // the given subset of the basis. (n_minmax: former option, still read)
     const auto n_minmax = SR_input.get("n_minmax", std::vector{1, 999});
-    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    const auto n_min =
+      SR_input.get("n_min_core", n_minmax.size() > 0 ? n_minmax[0] : 1);
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+    const auto sr_basis_string = SR_input.get<std::string>("basis");
+    const auto sr_basis =
+      sr_basis_string ?
+        DiracSpinor::subset(wf.basis(), *sr_basis_string, false) :
+        wf.basis();
     const auto Qk_file_t = SR_input.get("Qk_file", std::string{"true"});
     const std::string Qk_file =
       Qk_file_t != "false" ?
@@ -294,6 +314,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Including from n = " << n_min << "\n";
     if (n_max < 999)
       std::cout << "Including to n = " << n_max << "\n";
+    if (sr_basis_string)
+      std::cout << "Using basis: " << *sr_basis_string << "\n";
     if (k_cut < 99)
       std::cout << "Cutting Qk integrals at k = " << k_cut << "\n";
     if (!fk.empty()) {
@@ -311,8 +333,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     std::cout << std::flush;
 
-    sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max},
-                            Qk_file, k_cut, fk);
+    sr = MBPT::StructureRad(sr_basis, wf.FermiLevel(), {n_min, n_max}, Qk_file,
+                            k_cut, fk);
   }
   MBPT::StructureRad *const p_sr = sr ? &sr.value() : nullptr;
 
@@ -452,7 +474,9 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       "create it and write to disk. If 'true' will use default filename. "
       "Save time (10x) at cost of memory. Note: Using QkTable "
       "implies splines used for diagram legs"},
-     {"n_minmax", "list; min,max n for core/excited: [1,inf]"},
+     {"n_min_core", "Minimum n for core states in the diagrams [1]"},
+     {"basis", "Basis used for the internal lines of the diagrams, "
+               "e.g., 30spdf [full basis]"},
      {"n_max_legs",
       "Max n of the CI basis states that SR+N is applied to. SR+N is only "
       "meaningful between physical states, and the high-n states of the CI "
@@ -534,10 +558,17 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::optional<MBPT::StructureRad> sr;
   if (t_SR_input) {
-    // min/max n (for core/excited basis)
-    const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
-    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    // Internal lines of the diagrams: core states with n >= n_min_core, and
+    // the given subset of the basis. (n_minmax: former option, still read)
+    const auto n_minmax = SR_input.get("n_minmax", std::vector{1, 999});
+    const auto n_min =
+      SR_input.get("n_min_core", n_minmax.size() > 0 ? n_minmax[0] : 1);
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+    const auto sr_basis_string = SR_input.get<std::string>("basis");
+    const auto sr_basis =
+      sr_basis_string ?
+        DiracSpinor::subset(wf.basis(), *sr_basis_string, false) :
+        wf.basis();
     const auto Qk_file_t = SR_input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
       Qk_file_t != "false" ?
@@ -551,6 +582,8 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Including from n = " << n_min << "\n";
     if (n_max < 999)
       std::cout << "Including to n = " << n_max << "\n";
+    if (sr_basis_string)
+      std::cout << "Using basis: " << *sr_basis_string << "\n";
     std::cout << "Applied to CI basis states with n <= " << sr_n_max << "\n";
     if (!Qk_file.empty()) {
       std::cout
@@ -561,8 +594,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     std::cout << std::flush;
 
-    sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+    sr = MBPT::StructureRad(sr_basis, wf.FermiLevel(), {n_min, n_max}, Qk_file);
   }
   MBPT::StructureRad *const p_sr = sr ? &sr.value() : nullptr;
 
