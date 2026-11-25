@@ -1,6 +1,6 @@
 \page module_matrixelements Matrix Elements
 
-\brief Matrix elements of any operator, with optional RPA (core polarisation)
+\brief Matrix elements of any operator, with optional RPA (core polarisation) and structure radiation
 
 The `matrixElements` module (run as `Module::matrixElements{}`) calculates
 reduced matrix elements (or hyperfine constants, or stretched-state matrix
@@ -12,8 +12,10 @@ states, with optional RPA corrections.
 * Optionally includes core states, and/or uses the spectrum (which includes
   correlations, if it was made with them) in place of the valence states.
 * RPA may be included with the TDHF, diagram, or basis methods.
-* Structure radiation and normalisation are _not_ included here: see
-  \ref module_structurerad.
+* Structure radiation and normalisation may be added to each element via the
+  `StructureRadiation{}` block; each correction is printed in its own column,
+  along with the total. The \ref module_structurerad module gives each term
+  separately, and the Brueckner orbital correction.
 
 Frequency handling: frequency-dependent operators (e.g. E1v) are evaluated
 at each pair's transition frequency, which is their physical frequency; the
@@ -43,9 +45,11 @@ Module::matrixElements{
   // Matrix elements of any operator for HF/Brueckner
   // valence states. Supports RPA, diagonal and off-diagonal
   // elements, core states, and optional use of the spectrum
-  // instead of valence states.
-  // Note: SR and Norm are not included here; calculated
-  // seperately in own modules
+  // instead of valence states. Structure radiation and
+  // normalisation may be added to each element via the
+  // StructureRadiation{} block (the StructureRadiation
+  // module gives each term separately, and the Brueckner
+  // orbital correction)
   operator;
     // e.g., E1, hfs (see ampsci -o for available operators)
   options{}
@@ -87,6 +91,10 @@ Module::matrixElements{
     // for (hyperfine A,B,etc. constants). Default is
     // Reduced, except for hyperfine operator, for which it
     // is HFConstant
+  StructureRadiation{}
+    // Options for structure radiation and normalisation
+    // (details below). If this block is included, SR+N is
+    // added to each matrix element
 }
 
 // Available rpa_options options/blocks
@@ -98,5 +106,29 @@ rpa_options{
   max_iterations;
     // Maximum number of iterations. 1 should correspond to
     // first-order RPA [100]
+}
+
+// Available StructureRadiation options/blocks
+StructureRadiation{
+  // If this block is included, structure radiation +
+  // normalisation corrections are added to each matrix
+  // element
+  Qk_file;
+    // true/false/filename - SR: filename for QkTable file.
+    // If blank will not use QkTable; if exists, will read
+    // it in; if doesn't exist, will create it and write to
+    // disk. If 'true' will use default filename. Save time
+    // (10x) at cost of memory. Note: Using QkTable implies
+    // basis states used for diagram legs [true]
+  n_minmax;
+    // list; min,max n for core/excited: [1,inf]
+  k_cut;
+    // Maximum multipolarity k to include in Coulomb Qk.
+    // Default: all
+  fk;
+    // list: Coulomb screening factors for each k
+  norm;
+    // Include the normalisation of states? If false, only
+    // the structure radiation is included [true]
 }
 ```

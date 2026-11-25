@@ -69,16 +69,17 @@ TDHF E1 (w=0.0000): 19 9.7e-11 [3p+,d-]
 
 E1
 
-   a    b    w_ab        t0_ab          +RPA
- 6p-  6s+    0.0417522  -5.277687e+00  -4.974398e+00
- 6p+  6s+    0.0435826   7.426435e+00   7.013071e+00
+ a    b     w_ab    t0_ab         dV            Total
+ 6p-  6s+   0.0418 -5.277687e+00  3.032890e-01 -4.974398e+00
+ 6p+  6s+   0.0436  7.426435e+00 -4.133640e-01  7.013071e+00
 ```
 
 The first lines show what is being calculated and how well the RPA (TDHF)
 equations converged. Then, for each pair of valence states allowed by the
 selection rules: the transition frequency `w_ab` (in au), the lowest-order
-(Hartree-Fock) reduced matrix element `t0_ab`, and the value including the
-RPA correction.
+(Hartree-Fock) reduced matrix element `t0_ab`, the RPA correction `dV`, and
+the total. (Structure radiation and normalisation, if included via the
+`StructureRadiation{}` block, are printed as further columns.)
 
 Most modules take input options; list them by giving the module name after
 `-m` on the command-line (the output is in input-file format, so you can
@@ -133,10 +134,10 @@ Hyperfine A constants (M1)
 Units: MHz
 Including RPA: TDHF method
 
-   a    b    w_ab        t0_ab          +RPA
- 6s+  6s+    0.0000000   1.421144e+03   1.712908e+03
- 6p-  6p-    0.0000000   1.606247e+02   2.011687e+02
- 6p+  6p+    0.0000000   2.387730e+01   4.268347e+01
+ a    b     w_ab    t0_ab         dV            Total
+ 6s+  6s+   0.0000  1.421144e+03  2.917640e+02  1.712908e+03
+ 6p-  6p-   0.0000  1.606247e+02  4.054400e+01  2.011687e+02
+ 6p+  6p+   0.0000  2.387730e+01  1.880617e+01  4.268347e+01
 ```
 
 Note we may add as many `Module::` blocks as we like; they are run

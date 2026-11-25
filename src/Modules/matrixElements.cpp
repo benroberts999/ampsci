@@ -34,6 +34,9 @@ namespace Module {
   - Includes core-state matrix elements.
   - Uses the spectrum instead of HF valence states.
   - Solves RPA at a fixed frequency, or at each transition frequency ('each').
+  - Includes structure radiation and normalisation corrections (via the
+    @p StructureRadiation{} block); each correction is printed separately,
+    along with the total.
 
   Frequency-dependent operators are evaluated at each pair's transition
   frequency (their physical frequency); omega_operator pins them at a fixed
@@ -88,9 +91,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({
     {"", "Matrix elements of any operator for HF/Brueckner valence states. "
          "Supports RPA, diagonal and off-diagonal elements, core states, "
-         "and optional use of the spectrum instead of valence states.\n"
-         "Note: SR and Norm are not included here; calculated seperately in "
-         "own modules"},
+         "and optional use of the spectrum instead of valence states. "
+         "Structure radiation and normalisation may be added to each element "
+         "via the StructureRadiation{} block (the StructureRadiation module "
+         "gives each term separately, and the Brueckner orbital correction)"},
     {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
     {"options{}", "options specific to operator (see ampsci -o 'operator')"},
     {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram, "
@@ -118,6 +122,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
      "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
      "except for hyperfine operator, for which it is HFConstant"},
+    {"StructureRadiation{}",
+     "Options for structure radiation and normalisation (details below). If "
+     "this block is included, SR+N is added to each matrix element"},
   });
 
   const auto t_rpa_input = input.getBlock("rpa_options");
@@ -133,6 +140,29 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
      {"anderson", "TDHF only: solve by Anderson mixing (true) or damped "
                   "iteration (false); if it does not converge, the other "
                   "is tried [true]"}});
+
+  // Structure radiation + normalisation: included only if the block is given
+  const auto t_SR_input = input.getBlock("StructureRadiation");
+  auto SR_input =
+    t_SR_input ? *t_SR_input : IO::InputBlock{"StructureRadiation"};
+  if (input.has_option("help")) {
+    SR_input.add("help;");
+  }
+  SR_input.check(
+    {{"", "If this block is included, structure radiation + normalisation "
+          "corrections are added to each matrix element"},
+     {"Qk_file",
+      "true/false/filename - SR: filename for QkTable file. If blank will "
+      "not use QkTable; if exists, will read it in; if doesn't exist, will "
+      "create it and write to disk. If 'true' will use default filename. "
+      "Save time (10x) at cost of memory. Note: Using QkTable implies basis "
+      "states used for diagram legs [true]"},
+     {"n_minmax", "list; min,max n for core/excited: [1,inf]"},
+     {"k_cut",
+      "Maximum multipolarity k to include in Coulomb Qk. Default: all"},
+     {"fk", "list: Coulomb screening factors for each k"},
+     {"norm", "Include the normalisation of states? If false, only the "
+              "structure radiation is included [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -236,6 +266,56 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << omega << "\n";
   }
 
+  // Structure radiation + normalisation (added to each element)
+  const auto sr_norm = SR_input.get("norm", true);
+  std::optional<MBPT::StructureRad> sr;
+  if (t_SR_input) {
+    if (wf.basis().empty()) {
+      fmt2::error();
+      std::cout << ": Structure radiation requires a basis\n";
+      return;
+    }
+    // min/max n (for core/excited basis)
+    const auto n_minmax = SR_input.get("n_minmax", std::vector{1, 999});
+    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+    const auto Qk_file_t = SR_input.get("Qk_file", std::string{"true"});
+    const std::string Qk_file =
+      Qk_file_t != "false" ?
+        Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
+        "";
+    const auto k_cut = SR_input.get("k_cut", 99);
+    const auto fk = SR_input.get("fk", std::vector<double>{});
+
+    std::cout << "\nIncluding structure radiation";
+    std::cout << (sr_norm ? " and normalisation of states:\n" :
+                            " (no normalisation of states):\n");
+    if (n_min > 1)
+      std::cout << "Including from n = " << n_min << "\n";
+    if (n_max < 999)
+      std::cout << "Including to n = " << n_max << "\n";
+    if (k_cut < 99)
+      std::cout << "Cutting Qk integrals at k = " << k_cut << "\n";
+    if (!fk.empty()) {
+      std::cout << "Including effective Coulomb screening, with: fk = ";
+      for (const auto &f : fk) {
+        std::cout << f << ", ";
+      }
+      std::cout << "\n";
+    }
+    if (!Qk_file.empty()) {
+      std::cout << "Will read/write Qk integrals to file: " << Qk_file
+                << "\n  -- Note: means basis states used for diagram legs\n";
+    } else {
+      std::cout << "Will calculate Qk integrals on-the-fly\n";
+    }
+    std::cout << std::flush;
+
+    sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max},
+                            Qk_file, k_cut, fk);
+  }
+  MBPT::StructureRad *const p_sr = sr ? &sr.value() : nullptr;
+
   // ability to use spectrum instead of valence, and optionally include core
   std::vector<DiracSpinor> orbs;
 
@@ -284,27 +364,43 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   options.rpa_iterations = rpa_its;
 
   const auto mes =
-    Amplitudes::matrix_elements(orbs, h.get(), rpa.get(), nullptr, options);
+    Amplitudes::matrix_elements(orbs, h.get(), rpa.get(), p_sr, options);
 
-  // Print:
+  // Print: lowest order, then each correction that was calculated, then the
+  // total
+  const bool print_dv = rpa != nullptr;
+  const bool print_sr = sr.has_value();
+  const bool print_norm = print_sr && sr_norm;
+  const bool print_total = print_dv || print_sr;
   std::cout << "\n" << h->name() << "\n";
-  std::cout << "\n   a    b    w_ab        t0_ab";
-  if (rpa)
-    std::cout << "          +RPA ";
-  std::cout << "\n";
+  fmt::print("\n {:<4s} {:<4s}  {:<6s}  {:<12s}", "a", "b", "w_ab", "t0_ab");
+  if (print_dv)
+    fmt::print("  {:<12s}", "dV");
+  if (print_sr)
+    fmt::print("  {:<12s}", "SR");
+  if (print_norm)
+    fmt::print("  {:<12s}", "Norm");
+  if (print_total)
+    fmt::print("  {:<12s}", "Total");
+  fmt::print("\n");
   for (const auto &m : mes) {
-    fmt::print(" {:4s} {:4s}  {:10.7f}  {:13.6e}", m.a, m.b, m.omega,
-               m.value0());
-    if (m.dv != 0.0) {
-      fmt::print("  {:13.6e}", m.value());
-    }
+    const auto dv = m.factor * m.dv;
+    const auto sr_term = m.factor * m.sr;
+    const auto norm = print_norm ? m.factor * m.norm : 0.0;
+    fmt::print(" {:4s} {:4s} {:7.4f} {:13.6e}", m.a, m.b, m.omega, m.value0());
+    if (print_dv)
+      fmt::print(" {:13.6e}", dv);
+    if (print_sr)
+      fmt::print(" {:13.6e}", sr_term);
+    if (print_norm)
+      fmt::print(" {:13.6e}", norm);
+    if (print_total)
+      fmt::print(" {:13.6e}", m.value0() + dv + sr_term + norm);
     fmt::print("\n");
   }
   std::cout << "\n";
 }
 
-//============================================================================
-// Calculates Structure Radiation + Normalisation of States
 //============================================================================
 // Calculates matrix elements for CI wavefunctions
 void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
@@ -468,7 +564,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     sr =
       MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
   }
-  MBPT::StructureRad *const p_sr = sr ? &*sr : nullptr;
+  MBPT::StructureRad *const p_sr = sr ? &sr.value() : nullptr;
 
   if (!eachFreqQ && h->freqDependantQ()) {
     std::cout << "Frequency-dependent operator at fixed frequency: w=" << omega
