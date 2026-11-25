@@ -1449,6 +1449,76 @@ TEST_CASE("CI: one-electron Na", "[CI][integration]") {
 }
 
 //==============================================================================
+// A correlation potential that holds a matrix for only some of the kappas of
+// the CI basis: Sigma_1 for the others is calculated directly (second order,
+// from the Coulomb integrals). With one valence electron each kappa is its
+// own (J, parity), so the levels of a kappa without a matrix must equal those
+// found with no correlation potential at all (every kappa direct). Those of a
+// kappa with a matrix differ only by the evaluation of Sigma (radial matrix
+// on a sub-grid, vs sums over Coulomb integrals)
+TEST_CASE("CI: Sigma_1 matrix and direct", "[CI][integration]") {
+
+  Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 50.0, "loglinear"},
+                  {"Na", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-8, false);
+  wf.solve_valence("3s", false);
+  auto b_params = SplineBasis::Parameters("20spd", 20, 6, {1.0e-3}, 30.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+
+  const std::size_t num_solutions = 2;
+  const IO::InputBlock input{
+    "CI", "ci_basis = 10sp; num_electrons = 1; J+ = 1/2; J- = 1/2, 3/2;"
+          "num_solutions = 2; sigma1 = true; qk_file = false;"
+          "ci_file = false; print_details = false;"};
+
+  // No correlation potential: Sigma_1 is direct for every kappa
+  const auto levels_direct = CI::configuration_interaction(input, wf).levels;
+
+  // Correlation potential for the valence state only: a matrix for s, none
+  // for p
+  wf.formSigma(1, 1.0e-3, 30.0, 6, false, true, false, 0, {}, {}, {}, false);
+  const bool has_s_matrix = wf.Sigma()->get(-1) != nullptr;
+  const bool has_p_matrix =
+    wf.Sigma()->get(1) != nullptr || wf.Sigma()->get(-2) != nullptr;
+  REQUIRE(has_s_matrix);
+  REQUIRE(!has_p_matrix);
+
+  const auto levels_mixed = CI::configuration_interaction(input, wf).levels;
+  REQUIRE(levels_direct.size() == 3);
+  REQUIRE(levels_mixed.size() == 3);
+
+  std::cout << "\n";
+  fmt::print("CI Sigma_1: matrix for s and direct for p vs all direct, Na\n");
+  fmt::print("  J pi  n   all direct        mixed     diff\n");
+  double max_diff_p = 0.0;
+  double max_relative_diff_s = 0.0;
+  for (std::size_t i = 0; i < levels_mixed.size(); ++i) {
+    const auto &psi = levels_mixed[i];
+    for (std::size_t n = 0; n < num_solutions; ++n) {
+      const auto E_direct = levels_direct[i].energy(n);
+      const auto E_mixed = psi.energy(n);
+      const auto diff = E_mixed - E_direct;
+      fmt::print("{:>3s} {:>2s} {:2} {:12.8f} {:12.8f} {:+8.1e}\n",
+                 CI::J_string(psi.twoJ()), psi.parity() == 1 ? "+" : "-", n,
+                 E_direct, E_mixed, diff);
+      if (psi.parity() == 1) {
+        max_relative_diff_s =
+          std::max(max_relative_diff_s, std::abs(diff / E_direct));
+      } else {
+        max_diff_p = std::max(max_diff_p, std::abs(diff));
+      }
+    }
+  }
+  fmt::print("p levels (direct) vs all direct: max diff = {:.1e} au\n",
+             max_diff_p);
+  fmt::print("s levels (matrix) vs all direct: max relative diff = {:.1e}\n",
+             max_relative_diff_s);
+  REQUIRE(max_diff_p < 1.0e-10);
+  REQUIRE(max_relative_diff_s < 1.0e-3);
+}
+
+//==============================================================================
 // The CI solutions file: blocks with different numbers of solutions; a new
 // block appended; a block re-written with more solutions (the other block
 // kept exactly); an incomplete final block dropped; the file size; and a file

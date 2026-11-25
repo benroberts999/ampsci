@@ -161,20 +161,24 @@ struct Sigma1Correction {
   For each same-kappa pair in @p ci_basis, computes the (uncorrected) Sigma_1
   matrix element and its energy derivative (central finite difference of
   MBPT::Sigma_vw). Sigma_1 is evaluated at the energy of the first state of
-  each kappa in @p ci_basis - the same convention as calculate_h1_table(), so
-  the stored S1 matches the Sigma_1 included in the h1 table.
+  each kappa in @p ci_basis, with the effective screening factors @p fk - the
+  same convention as calculate_h1_table(), so the stored S1 matches the Sigma_1
+  included in the h1 table.
 
   @param ci_basis          Basis states for which table entries are needed.
   @param s1_basis_core     Core states used as internal lines for Sigma_1.
   @param s1_basis_excited  Excited states used as internal lines for Sigma_1.
   @param qk                Table of Coulomb \f$ Q^k \f$ integrals.
+  @param fk                Effective screening factors for Sigma_1, for each
+                           multipole k (missing: 1).
   @return Filled Sigma1Correction tables (E0 left unset; see @ref iterate_E0).
 */
 [[nodiscard]] Sigma1Correction
 calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
                           const std::vector<DiracSpinor> &s1_basis_core,
                           const std::vector<DiracSpinor> &s1_basis_excited,
-                          const Coulomb::QkTable &qk);
+                          const Coulomb::QkTable &qk,
+                          const std::vector<double> &fk = {});
 
 /*!
   @brief Builds the Sigma_1 derivative-correction tables directly from a
@@ -617,13 +621,17 @@ double Breit_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
   If @p include_Sigma1 is true, the one-body MBPT \f$ \Sigma_1 \f$ correction
   is computed from the Coulomb integrals in @p qk using @p s1_basis_core and
   @p s1_basis_excited as the internal lines of the MBPT diagrams and added to
-  the diagonal.
+  the diagonal. It is evaluated at the energy of the first state of each kappa
+  in @p ci_basis, with optional effective screening factors @p fk (see
+  MBPT::Sigma_vw).
 
   @param ci_basis          Basis states for which table entries are needed.
   @param s1_basis_core     Core states used as internal lines for \f$ \Sigma_1 \f$.
   @param s1_basis_excited  Excited states used as internal lines for \f$ \Sigma_1 \f$.
   @param qk                Table of Coulomb \f$ Q^k \f$ integrals.
   @param include_Sigma1    If true, add one-body MBPT \f$ \Sigma_1 \f$ corrections.
+  @param fk                Effective screening factors for \f$ \Sigma_1 \f$, for
+                           each multipole k (missing: 1).
   @return Table of \f$ \langle a | h_1 | b \rangle \f$ matrix elements.
 
   @warning Assumes @p ci_basis states are Hartree-Fock eigenstates, so
@@ -633,7 +641,8 @@ double Breit_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
 calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    const std::vector<DiracSpinor> &s1_basis_core,
                    const std::vector<DiracSpinor> &s1_basis_excited,
-                   const Coulomb::QkTable &qk, bool include_Sigma1);
+                   const Coulomb::QkTable &qk, bool include_Sigma1,
+                   const std::vector<double> &fk = {});
 
 /*!
   @brief Builds the one-body Hamiltonian table using a precomputed

@@ -437,7 +437,8 @@ Sigma1Correction
 calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
                           const std::vector<DiracSpinor> &s1_basis_core,
                           const std::vector<DiracSpinor> &s1_basis_excited,
-                          const Coulomb::QkTable &qk) {
+                          const Coulomb::QkTable &qk,
+                          const std::vector<double> &fk) {
   // nb: E0 is left at 0.0 (not set): it belongs to a single (J, parity), and
   // is found by iterate_E0()
   Sigma1Correction corr;
@@ -473,9 +474,9 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
         continue;
 
       const auto S0 =
-        MBPT::Sigma_vw(v, w, qk, s1_basis_core, s1_basis_excited, 99, ev);
-      const auto dS =
-        MBPT::dSigma_dE_vw(v, w, qk, s1_basis_core, s1_basis_excited, ev);
+        MBPT::Sigma_vw(v, w, qk, s1_basis_core, s1_basis_excited, 99, ev, fk);
+      const auto dS = MBPT::dSigma_dE_vw(v, w, qk, s1_basis_core,
+                                         s1_basis_excited, ev, 99, 0.01, fk);
 
       *corr.S1.get(v, w) = S0;
       *corr.dS1.get(v, w) = dS;
@@ -779,7 +780,8 @@ Coulomb::meTable<double>
 calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    const std::vector<DiracSpinor> &s1_basis_core,
                    const std::vector<DiracSpinor> &s1_basis_excited,
-                   const Coulomb::QkTable &qk, bool include_Sigma1) {
+                   const Coulomb::QkTable &qk, bool include_Sigma1,
+                   const std::vector<double> &fk) {
   // Create lookup table for one-particle matrix elements, h1
   Coulomb::meTable<double> h1;
 
@@ -811,10 +813,10 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
         continue;
       const auto h0_vw = v == w ? v.en() : 0.0;
 
-      const auto Sigma_vw =
-        include_Sigma1 ?
-          MBPT::Sigma_vw(v, w, qk, s1_basis_core, s1_basis_excited, 99, ev) :
-          0.0;
+      const auto Sigma_vw = include_Sigma1 ?
+                              MBPT::Sigma_vw(v, w, qk, s1_basis_core,
+                                             s1_basis_excited, 99, ev, fk) :
+                              0.0;
 
       *h1.get(v, w) = h0_vw + Sigma_vw;
       // Add symmetric partner:

@@ -224,6 +224,10 @@ std::pair<int, int> k_minmax_S(int twoj_v, int twoj_w, int twoj_x, int twoj_y);
   @p max_l_internal truncates the angular momentum of internal lines; intended
   for convergence tests only.
 
+  @p fk are effective screening factors: each term is scaled by fk[k], with k
+  the multipolarity of its \f$ Q^k \f$ Coulomb line (direct and exchange
+  alike; the second line of the exchange term is not screened).
+
   @param v                External bra spinor.
   @param w                External ket spinor.
   @param qk               Coulomb integral table (YkTable or QkTable).
@@ -231,6 +235,8 @@ std::pair<int, int> k_minmax_S(int twoj_v, int twoj_w, int twoj_x, int twoj_y);
   @param excited          Excited (particle) states.
   @param max_l_internal   Maximum \f$ l \f$ for internal lines (default 99).
   @param ev               Optional energy at which Sigma is evaluated.
+  @param fk               Effective screening factors, for each multipole k
+                          (missing: 1).
 
   @return \f$ \langle v | \Sigma(E) | w \rangle \f$.
 */
@@ -239,7 +245,8 @@ double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w,
                 const CoulombIntegral &qk, const std::vector<DiracSpinor> &core,
                 const std::vector<DiracSpinor> &excited,
                 int max_l_internal = 99,
-                std::optional<double> ev = std::nullopt);
+                std::optional<double> ev = std::nullopt,
+                const std::vector<double> &fk = {});
 
 /*!
   @brief Direct and exchange parts of Sigma_vw(), returned separately.
@@ -256,7 +263,8 @@ template <class CoulombIntegral> // CoulombIntegral may be YkTable or QkTable
 std::pair<double, double> Sigma_vw_direct_exchange(
   const DiracSpinor &v, const DiracSpinor &w, const CoulombIntegral &qk,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  int max_l_internal = 99, std::optional<double> ev = std::nullopt);
+  int max_l_internal = 99, std::optional<double> ev = std::nullopt,
+  const std::vector<double> &fk = {});
 
 /*!
   @brief Energy derivative of the one-body correlation correction.
@@ -272,6 +280,7 @@ std::pair<double, double> Sigma_vw_direct_exchange(
   @param ev             Energy at which the derivative is evaluated.
   @param max_l_internal Maximum \f$ l \f$ for internal lines (default 99).
   @param delta          Finite-difference step, in au.
+  @param fk             Effective screening factors (see Sigma_vw()).
 
   @return \f$ d\langle v|\Sigma(E)|w\rangle/dE \f$.
 */
@@ -280,7 +289,8 @@ double dSigma_dE_vw(const DiracSpinor &v, const DiracSpinor &w,
                     const CoulombIntegral &qk,
                     const std::vector<DiracSpinor> &core,
                     const std::vector<DiracSpinor> &excited, double ev,
-                    int max_l_internal = 99, double delta = 0.01);
+                    int max_l_internal = 99, double delta = 0.01,
+                    const std::vector<double> &fk = {});
 
 /*!
   @brief Returns energy of first excited state matching a given kappa.

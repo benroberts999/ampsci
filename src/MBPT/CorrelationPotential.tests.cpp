@@ -59,6 +59,16 @@ TEST_CASE("MBPT: Goldstone unit tests", "[MBPT][Goldstone][unit]") {
 
     // Not an accuracy test
     REQUIRE(de1 == Approx(de0).epsilon(1.0e-3));
+
+    // Same, with effective screening factors: the matrix element must screen
+    // the same Coulomb lines as the matrix does
+    const std::vector<double> fk{0.7, 0.6, 0.85, 0.9};
+    const auto Sigma_fk = Gs.Sigma_direct(v.kappa(), v.en(), fk) +
+                          Gs.Sigma_exchange(v.kappa(), v.en(), fk);
+    const auto de0_fk =
+      MBPT::Sigma_vw(v, v, Yeh, holes, excited, 99, v.en(), fk);
+    const auto de1_fk = v * (Sigma_fk * v);
+    REQUIRE(de1_fk == Approx(de0_fk).epsilon(1.0e-3));
   }
 }
 

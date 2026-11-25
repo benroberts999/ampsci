@@ -12,7 +12,7 @@ template <class CoulombIntegral> // CoulombIntegral may be YkTable or QkTable
 std::pair<double, double> Sigma_vw_direct_exchange(
   const DiracSpinor &v, const DiracSpinor &w, const CoulombIntegral &qk,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  int max_l_internal, std::optional<double> ev) {
+  int max_l_internal, std::optional<double> ev, const std::vector<double> &fk) {
 
   static_assert(std::is_same_v<CoulombIntegral, Coulomb::QkTable> ||
                 std::is_same_v<CoulombIntegral, Coulomb::YkTable>);
@@ -30,6 +30,11 @@ std::pair<double, double> Sigma_vw_direct_exchange(
   // Mainly for tests, but can include basis states only up to maximum l
   if (max_l_internal < 0)
     max_l_internal = 999;
+
+  // Effective screening factor for multipolarity k (1 if not given)
+  const auto Fk = [&fk](int k) {
+    return k < (int)fk.size() ? fk[std::size_t(k)] : 1.0;
+  };
 
   double sum_direct = 0.0;
   double sum_exchange = 0.0;
@@ -58,8 +63,9 @@ std::pair<double, double> Sigma_vw_direct_exchange(
           const auto Qk_vamn = qk.Q(k, v, a, m, n);
           const auto Qk_wamn = (v == w) ? Qk_vamn : qk.Q(k, w, a, m, n);
           const auto Pk_wamn = qk.P(k, w, a, m, n);
-          sum_direct += Qk_vamn * Qk_wamn * inv_de / (2.0 * k + 1.0);
-          sum_exchange += Qk_vamn * Pk_wamn * inv_de / (2.0 * k + 1.0);
+          const auto factor = Fk(k) * inv_de / (2.0 * k + 1.0);
+          sum_direct += Qk_vamn * Qk_wamn * factor;
+          sum_exchange += Qk_vamn * Pk_wamn * factor;
         }
       }
 
@@ -75,8 +81,9 @@ std::pair<double, double> Sigma_vw_direct_exchange(
           const auto Qk_vnba = qk.Q(k, v, n, b, a);
           const auto Qk_wnba = (v == w) ? Qk_vnba : qk.Q(k, w, n, b, a);
           const auto Pk_wnba = qk.P(k, w, n, b, a);
-          sum_direct += Qk_vnba * Qk_wnba * inv_de / (2.0 * k + 1.0);
-          sum_exchange += Qk_vnba * Pk_wnba * inv_de / (2.0 * k + 1.0);
+          const auto factor = Fk(k) * inv_de / (2.0 * k + 1.0);
+          sum_direct += Qk_vnba * Qk_wnba * factor;
+          sum_exchange += Qk_vnba * Pk_wnba * factor;
         }
       }
     }
@@ -93,21 +100,23 @@ template <class CoulombIntegral> // CoulombIntegral may be YkTable or QkTable
 double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w,
                 const CoulombIntegral &qk, const std::vector<DiracSpinor> &core,
                 const std::vector<DiracSpinor> &excited, int max_l_internal,
-                std::optional<double> ev) {
+                std::optional<double> ev, const std::vector<double> &fk) {
   const auto [direct, exchange] =
-    Sigma_vw_direct_exchange(v, w, qk, core, excited, max_l_internal, ev);
+    Sigma_vw_direct_exchange(v, w, qk, core, excited, max_l_internal, ev, fk);
   return direct + exchange;
 }
 
 //==============================================================================
 template <class CoulombIntegral>
-double dSigma_dE_vw(const DiracSpinor &v, const DiracSpinor &w,
-                    const CoulombIntegral &qk,
-                    const std::vector<DiracSpinor> &core,
-                    const std::vector<DiracSpinor> &excited, double ev,
-                    int max_l_internal, double delta) {
-  const auto Sp = Sigma_vw(v, w, qk, core, excited, max_l_internal, ev + delta);
-  const auto Sm = Sigma_vw(v, w, qk, core, excited, max_l_internal, ev - delta);
+double
+dSigma_dE_vw(const DiracSpinor &v, const DiracSpinor &w,
+             const CoulombIntegral &qk, const std::vector<DiracSpinor> &core,
+             const std::vector<DiracSpinor> &excited, double ev,
+             int max_l_internal, double delta, const std::vector<double> &fk) {
+  const auto Sp =
+    Sigma_vw(v, w, qk, core, excited, max_l_internal, ev + delta, fk);
+  const auto Sm =
+    Sigma_vw(v, w, qk, core, excited, max_l_internal, ev - delta, fk);
   return (Sp - Sm) / (2.0 * delta);
 }
 

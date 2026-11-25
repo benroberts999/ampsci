@@ -67,10 +67,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Effective QPQ ~ fk Q screening factors for the Sigma_2 Coulomb lines. "
      "Give an explicit list to use those values; set 'false' for no "
      "screening (or 'fk = 1;'). "
-     "If blank (default), takes from correlation potential if it has them."},
+     "If blank (default), takes from correlation potential if it has them. "
+     "Also used for Sigma_1, where that is not taken from the correlation "
+     "potential."},
     {"Feynman_screen",
      "Use Feynman method for Sigma_2 screening diagrams. Requires "
-     "Correlations{Feynman = true;} [false]"},
+     "`Feynman = true;` or `all_order=true;` in Correlations{} [false]"},
     {"denominators",
      "Energy denominators in Sigma_2 [DFK]:\n"
      " - DFK: (Dzuba Flambaum Kozlov) target legs as Fermi, others as RS\n"
@@ -221,6 +223,17 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   }
   fmt::print("CI for {} valence electron{}\n", num_electrons,
              num_electrons == 1 ? "" : "s");
+  // More valence electrons than the charge of the core: a negative ion. This
+  // is usually a mistake (valence shells left in the core)
+  if (num_electrons > wf.Zion()) {
+    fmt2::warning();
+    fmt::print(": {} valence electrons, but the core ({}) has charge {}: "
+               "negative ion, total charge {}.\n"
+               "Check num_electrons and the core: the valence shells must not "
+               "be in the core\n",
+               num_electrons, wf.coreConfiguration_nice(), wf.Zion(),
+               wf.Zion() - num_electrons);
+  }
   // options to include MBPT
   const auto include_Sigma1 = input.get("sigma1", false);
   // Sigma_2 acts between pairs of valence electrons: none for one electron
@@ -327,6 +340,32 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   const auto &s2_basis =
     s2_basis_string ? CI::basis_subset(t_basis, *s2_basis_string) : s1_basis;
 
+  // The correlation potential may not hold a matrix for every kappa of the CI
+  // basis (it is formed for the valence states). Sigma_1 for the others is
+  // calculated directly: second order, from the Coulomb integrals
+  std::vector<DiracSpinor> sigma1_direct_orbitals;
+  std::vector<std::string> sigma1_matrix_kappas;
+  std::vector<std::string> sigma1_direct_kappas;
+  if (include_Sigma1 && wf.Sigma() && !Brueckner) {
+    for (auto kindex = 0ul; kindex <= DiracSpinor::max_kindex(ci_sp_basis);
+         ++kindex) {
+      const auto kappa = Angular::kindex_to_kappa(kindex);
+      const auto kappa_orbitals = qip::select_if(
+        ci_sp_basis, [kappa](const auto &Fn) { return Fn.kappa() == kappa; });
+      if (kappa_orbitals.empty())
+        continue;
+      const auto kappa_symbol = DiracSpinor::shortSymbol(0, kappa);
+      if (wf.Sigma()->get(kappa) != nullptr) {
+        sigma1_matrix_kappas.push_back(kappa_symbol);
+      } else {
+        sigma1_direct_kappas.push_back(kappa_symbol);
+        sigma1_direct_orbitals.insert(sigma1_direct_orbitals.end(),
+                                      kappa_orbitals.cbegin(),
+                                      kappa_orbitals.cend());
+      }
+    }
+  }
+
   // Ensure s2_basis is subset of s1_basis
   assert(s2_basis.size() <= s1_basis.size() &&
          "s2_basis must be a subset of s1_basis");
@@ -358,7 +397,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       CI::basis_subset(ci_sp_basis, cis2_basis_strings.at(1)) :
       ci_sp_basis;
 
-  // Screening factors for Sigma_2 (QPQ ~ fk*Q):
+  // Screening factors (QPQ ~ fk*Q), for Sigma_2, and for Sigma_1 where it is
+  // calculated directly (not taken from the correlation potential):
   // - explicit list: used as given
   // - fk = false; : no screening (fk = 1)
   // - blank: if the correlation potential stores fk (Feynman screening),
@@ -368,7 +408,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   auto fk =
     fk_false ? std::vector<double>{} : input.get("fk", std::vector<double>{});
   bool fk_from_Sigma = false;
-  if (fk.empty() && !fk_false && include_Sigma2 && wf.Sigma()) {
+  if (fk.empty() && !fk_false && wf.Sigma()) {
     fk = wf.Sigma()->average_fk(2);
     fk_from_Sigma = !fk.empty();
   }
@@ -453,11 +493,29 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     }
     if (include_Sigma1) {
       if (wf.Sigma()) {
-        std::cout << "With existing Correlation Potential for Σ_1:\n";
+        fmt::print("With Correlation Potential ({}) for Σ_1",
+                   wf.Sigma()->method_string());
+        if (!sigma1_direct_orbitals.empty()) {
+          fmt::print(" for {}", fmt::join(sigma1_matrix_kappas, ","));
+        }
+        std::cout << ":\n";
         wf.Sigma()->print_info();
-      } else {
-        std::cout << "With basis for Σ_1: "
-                  << DiracSpinor::state_config(s1_basis) << "\n";
+        if (!sigma1_direct_orbitals.empty()) {
+          fmt::print("Direct for {}\n", fmt::join(sigma1_direct_kappas, ","));
+        }
+      }
+      if (!wf.Sigma() || !sigma1_direct_orbitals.empty()) {
+        fmt::print("With basis for Σ_1: {}{}\n",
+                   DiracSpinor::state_config(s1_basis),
+                   fk.empty() ? "" : " (with fk screening)");
+        if (!fk.empty()) {
+          if (fk_from_Sigma) {
+            std::cout << "fk from correlation potential (average of lowest "
+                         "s, p, d)\n";
+          }
+          fmt::print("Effective screening into Σ_1:\n fk = [{:.3f}]\n",
+                     fmt::join(fk, ", "));
+        }
       }
     }
     if (include_Sigma2) {
@@ -564,10 +622,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
         };
 
       // Then, add those required for Sigma_1 (unless we have matrix!)
-      // (With matrix, still required if calculating derivative correction -
-      // except when the matrix supplies dSigma/dE itself: CP_derivative)
+      // (With matrix, still required for any kappa it does not hold, and if
+      // calculating derivative correction - except when the matrix supplies
+      // dSigma/dE itself: CP_derivative)
       const bool need_s1_qk =
-        include_Sigma1 && (!wf.Sigma() || (sigma1_dSdE && !CP_derivative));
+        include_Sigma1 && (!wf.Sigma() || (sigma1_dSdE && !CP_derivative) ||
+                           !sigma1_direct_orbitals.empty());
       if (need_s1_qk) {
         const auto temp_basis = qip::merge(core_s1, excited_s1);
         std::cout << "and: " << DiracSpinor::state_config(temp_basis)
@@ -615,7 +675,21 @@ Solutions configuration_interaction(const IO::InputBlock &input,
             wf.Sigma() ?
               CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
               CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
-                                     include_Sigma1);
+                                     include_Sigma1, fk);
+
+  // Sigma_1 for each kappa the correlation potential has no matrix for:
+  // second order, with the same screening factors as Sigma_2
+  if (!sigma1_direct_orbitals.empty()) {
+    const auto h1_direct = CI::calculate_h1_table(
+      sigma1_direct_orbitals, core_s1, excited_s1, qk, include_Sigma1, fk);
+    for (const auto &v : sigma1_direct_orbitals) {
+      for (const auto &w : sigma1_direct_orbitals) {
+        if (v.kappa() == w.kappa()) {
+          h1.update(v, w, h1_direct.getv(v, w));
+        }
+      }
+    }
+  }
 
   // Derivative (dSigma/dE) correction for Sigma_1
   CI::Sigma1Correction s1_corr;
@@ -634,11 +708,14 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       // Second-order (Goldstone) tables, from the qk integrals.
       // Filename encodes everything that changes the tables (cf. sk_file):
       // the ci basis (which pairs + e_sigma convention), the s1 internal
-      // lines, and the Coulomb-integral settings
-      const auto ds1_settings = DiracSpinor::state_config(ci_sp_basis) + ";" +
-                                DiracSpinor::state_config(core_s1) + ";" +
-                                std::to_string(n_min_core) + ";" +
-                                std::to_string(max_k_Coulomb) + ";";
+      // lines, the Coulomb-integral settings, and the screening factors
+      auto ds1_settings = DiracSpinor::state_config(ci_sp_basis) + ";" +
+                          DiracSpinor::state_config(core_s1) + ";" +
+                          std::to_string(n_min_core) + ";" +
+                          std::to_string(max_k_Coulomb) + ";";
+      for (const auto f : fk) {
+        ds1_settings += std::to_string(f) + ",";
+      }
       const auto ds1_basename = wf.identity() + br_string + "_" +
                                 DiracSpinor::state_config(excited_s1) + "_" +
                                 qip::hash_string(ds1_settings);
@@ -651,8 +728,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
         std::cout << "Read Sigma_1 correction tables from " << ds1_filename
                   << "\n";
       } else {
-        s1_corr =
-          CI::calculate_dSdE_correction(ci_sp_basis, core_s1, excited_s1, qk);
+        s1_corr = CI::calculate_dSdE_correction(ci_sp_basis, core_s1,
+                                                excited_s1, qk, fk);
         if (ds1_filename != "false") {
           std::cout << "Writing Sigma_1 correction tables to " << ds1_filename
                     << "\n";
@@ -881,6 +958,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     const auto lambdas = wf.Sigma()->lambda_string();
     if (!lambdas.empty()) {
       ci_settings += lambdas + ";";
+    }
+    if (!sigma1_direct_kappas.empty()) {
+      ci_settings +=
+        fmt::format("s1direct:{};", fmt::join(sigma1_direct_kappas, ","));
     }
   }
   if (!s1_corr.empty()) {
