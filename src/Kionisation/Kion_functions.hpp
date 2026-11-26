@@ -143,6 +143,45 @@ std::size_t check_radial_grid_E(double Emax, const Grid &rgrid,
                                 bool print = true);
 
 //------------------------------------------------------------------------------
+/*!
+  @brief Checks the momentum-transfer grid is dense enough to resolve the
+  Bethe ridge.
+
+  @details
+  At energy transfer E, the form factor of orbital a peaks at the momentum
+  of the ejected electron (the Bethe ridge),
+  \f[
+    q \approx p_f, \qquad
+    p_f^2 = \en_c\,(2 + \alpha^2\en_c), \qquad \en_c = E + \en_a,
+  \f]
+  with a width in q set by the momentum spread of the bound orbital, taken
+  as
+  \f[
+    w_a = \sqrt{2|\en_a|}
+  \f]
+  (the full width at half maximum for a hydrogen-like 1s state, to within a
+  few percent). The check passes if the q step at the ridge is at most
+  half of this, for every orbital and every energy whose ridge lies within
+  the q grid. Only a rough guide. For each decade of energy above 100 eV,
+  prints the q step at the ridge and the step required, for the worst case
+  in that decade, and the number of orbitals for which the check fails; if
+  it fails, also a warning with the lowest energy at which it fails and the
+  q_steps required.
+
+  @param core   Core orbitals.
+  @param Egrid  Energy transfer grid, in au.
+  @param qgrid  Momentum transfer grid, in au (any order).
+  @param alpha  Fine-structure constant (as used by the Hartree-Fock).
+  @return The number of q points with which the check passes, for a
+          logarithmic grid over the same range: the size of @p qgrid if it
+          passes already.
+*/
+std::size_t check_ridge_q_grid(const std::vector<DiracSpinor> &core,
+                               const std::vector<double> &Egrid,
+                               const std::vector<double> &qgrid,
+                               double alpha = PhysConst::alpha);
+
+//------------------------------------------------------------------------------
 //! The 13 form factors of one bound orbital (or their sum), in the fixed
 //! order: {V_T, V_E, V_M, V_L, X, A_T, A_E, A_M, A_L, Y, Z, S, P}. A factor
 //! that is not calculated is left empty (0x0).

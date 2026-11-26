@@ -1517,6 +1517,104 @@ std::size_t check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha,
 }
 
 //==============================================================================
+std::size_t check_ridge_q_grid(const std::vector<DiracSpinor> &core,
+                               const std::vector<double> &Egrid,
+                               const std::vector<double> &qgrid, double alpha) {
+  if (qgrid.size() < 2)
+    return qgrid.size();
+
+  auto q_sorted = qgrid;
+  std::sort(q_sorted.begin(), q_sorted.end());
+
+  // The q step at the ridge must be at most this fraction of the ridge width
+  const double max_step_on_width = 0.5;
+
+  // Lowest energy at which the check fails, and the smallest relative q step
+  // (step/q) that is required anywhere
+  double lowest_failed_E = std::numeric_limits<double>::infinity();
+  double required_relative_step = std::numeric_limits<double>::infinity();
+
+  std::cout << "\nCheck q grid for the Bethe ridge:\n";
+
+  // Decades of energy: E <= 100 eV, <= 1000 eV, ...
+  const auto first_decade_max = 100.0 / UnitConv::Energy_au_to_eV;
+  for (const auto &E_indices : energy_decades(Egrid, first_decade_max)) {
+
+    double E_last = 0.0;
+    for (const auto i_E : E_indices) {
+      E_last = std::max(E_last, Egrid[i_E]);
+    }
+
+    // Worst case in this decade (largest q step compared to that required),
+    // and the number of orbitals for which the check fails
+    double worst_step_on_required = 0.0;
+    double worst_step = 0.0, worst_required_step = 0.0;
+    std::size_t num_failed_orbitals = 0;
+
+    for (const auto &Fa : core) {
+      const auto ridge_width = std::sqrt(2.0 * std::abs(Fa.en()));
+      const auto required_step = max_step_on_width * ridge_width;
+      bool orbital_failed = false;
+      for (const auto i_E : E_indices) {
+        const auto E = Egrid[i_E];
+        const auto ec = E + Fa.en();
+        if (ec <= 0.0)
+          continue;
+        const auto p_f = std::sqrt(ec * (2.0 + alpha * alpha * ec));
+        // Only if the ridge lies within the q grid
+        if (p_f <= q_sorted.front() || p_f >= q_sorted.back())
+          continue;
+        const auto q_above =
+          std::upper_bound(q_sorted.begin(), q_sorted.end(), p_f);
+        const auto q_step = *q_above - *(q_above - 1);
+        if (q_step > required_step) {
+          orbital_failed = true;
+          lowest_failed_E = std::min(lowest_failed_E, E);
+        }
+        required_relative_step =
+          std::min(required_relative_step, required_step / p_f);
+        if (q_step / required_step > worst_step_on_required) {
+          worst_step_on_required = q_step / required_step;
+          worst_step = q_step;
+          worst_required_step = required_step;
+        }
+      }
+      if (orbital_failed) {
+        ++num_failed_orbitals;
+      }
+    }
+
+    // Printed for the decades above 100 eV, if any ridge is within the q grid
+    if (E_last <= first_decade_max || worst_step_on_required == 0.0)
+      continue;
+    fmt::print("E = {:.1e} eV: dq = {:.2f}, required: {:.2f}: ",
+               E_last * UnitConv::Energy_au_to_eV, worst_step,
+               worst_required_step);
+    if (num_failed_orbitals == 0) {
+      fmt::print("ok\n");
+    } else {
+      fmt::print("not resolved for {}/{} orbitals\n", num_failed_orbitals,
+                 core.size());
+    }
+  }
+
+  if (std::isinf(lowest_failed_E))
+    return qgrid.size();
+
+  // Logarithmic grid over the same range, with the required relative step
+  const auto required_q_steps =
+    1 + std::size_t(std::ceil(std::log(q_sorted.back() / q_sorted.front()) /
+                              std::log(1.0 + required_relative_step)));
+
+  fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
+  fmt::print("Ridge may not be resolved for E =~ {:.1e} eV\n => try increasing "
+             "q_steps to {}\n",
+             lowest_failed_E * UnitConv::Energy_au_to_eV, required_q_steps);
+  std::cout << "(nb: rough - often does not matter)\n";
+  return required_q_steps;
+}
+
+//==============================================================================
 std::size_t check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid,
                               double alpha, bool print) {
   const auto num_points_q = check_radial_grid_q(qmax_au, rgrid, print);

@@ -1190,6 +1190,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
+  // Check to see if the q grid is dense enough to resolve the Bethe ridge.
+  // Just prints warning to screen if not the case
+  if (ridge_correction) {
+    Kion::check_ridge_q_grid(wf.core(), Egrid, qgrid, wf.alpha());
+  }
+
   // Method for continuum states:
   const auto force_orthog = input.get("force_orthog", true);
   const auto force_rescale = input.get("force_rescale", false);
