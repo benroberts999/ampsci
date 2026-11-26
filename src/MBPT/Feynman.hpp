@@ -648,10 +648,11 @@ protected:
   // composite Simpson's rule in ln(u) on the log grid [w0, wmax], trapezoid
   // panel for [0, w0], and u^-3 tail correction beyond wmax
   void form_w_quadrature(double w0, double wratio);
-  // Disk-cache filename, <prefix>.<suffix>[h][s][b][g]<n_min>.abf, encoding
-  // the options the cached object depends on. suffix: "qpq" (Q*Pi*Q,
-  // screened or not) or "gex" (loop Green's functions; independent of
-  // screening, so always unscreened). "" if caching is disabled for ident
+  // Disk-cache filename, <prefix>.<suffix>.<hash>.abf, where hash is a short
+  // tag for every parameter the cached object depends on (options, radial
+  // grids, frequency grid). suffix: "qpq" (Q*Pi*Q, screened or not) or
+  // "gex" (loop Green's functions; independent of screening, so always
+  // unscreened). "" if caching is disabled for ident
   std::string cache_filename(const std::string &ident,
                              const std::string &suffix, bool screened) const;
 

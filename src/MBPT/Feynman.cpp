@@ -11,6 +11,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "qip/Maths.hpp"
+#include "qip/String.hpp"
 #include "qip/omp.hpp"
 #include <algorithm>
 #include <cassert>
@@ -1089,9 +1090,26 @@ std::string Feynman::cache_filename(const std::string &ident,
   const auto prefix = ident.substr(0, ident.find('.'));
   if (prefix == "" || prefix == "false")
     return "";
-  return prefix + "." + suffix + (m_hole_particle ? "h" : "") +
-         (screened ? "s" : "") + (m_HF->vBreit() == nullptr ? "" : "b") +
-         (m_include_G ? "g" : "") + std::to_string(m_min_core_n) + ".abf";
+
+  // Every parameter the cached object depends on (those checked in
+  // rw_cache_header), so each choice of options and grids has its own file.
+  // Floats are rounded, so the tag is not sensitive to numerical noise
+  auto settings =
+    fmt::format("{};{};{};{};", m_hole_particle, screened,
+                m_Complex_green_method, m_include_G) +
+    fmt::format("{};{};{};", m_max_ki, m_min_core_n, m_max_ki_core) +
+    fmt::format("{};{:.8e};{};", m_HF->vBreit() != nullptr, m_HF->alpha(),
+                m_HF->num_core_electrons()) +
+    fmt::format("{};{};{};{};", m_i0, m_stride, m_subgrid_points,
+                m_grid->size()) +
+    fmt::format("{:.8e};{:.8e};{:.8e};{:.8e};", m_grid->r0(), m_grid->rmax(),
+                m_grid->loglin_b(), m_grid->du()) +
+    fmt::format("{};{:.8e};", m_max_k, m_omre);
+  for (const auto &u : m_wgrid_points) {
+    settings += fmt::format("{:.8e},", u);
+  }
+
+  return prefix + "." + suffix + "." + qip::hash_string(settings) + ".abf";
 }
 
 //==============================================================================
