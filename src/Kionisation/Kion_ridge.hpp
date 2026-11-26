@@ -304,7 +304,7 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
   The correction is computed only where it can matter: for each orbital,
   at the momentum transfers where the multipoles above Kmax carry more than
   @p ridge_eps of the norm (captured_fraction()), at the energies where
-  the orbital is ionised (ejected energy within ( @p ec_min, @p ec_max ),
+  the orbital is ionised (ejected energy above @p ec_min),
   and, at each energy, only where |p_f - q| lies within the momentum grid
   of the orbital (elsewhere, far off the ridge, the plane-wave response is
   zero by construction).
@@ -316,7 +316,6 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
                         elements (model_bound_states()); must be the same
                         as used for the distorted-wave factors.
   @param ec_min         Minimum ejected electron energy, in au.
-  @param ec_max         Maximum ejected electron energy, in au.
   @param Egrid          Energy transfer grid, in au.
   @param qgrid          Momentum transfer grid, in au.
   @param jK_tab         Spherical Bessel table on @p qgrid (as used for the
@@ -338,7 +337,7 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
 */
 std::vector<FormFactorSet> calculate_ridge_correction(
   const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
-  double ec_min, double ec_max, const std::vector<double> &Egrid,
+  double ec_min, const std::vector<double> &Egrid,
   const std::vector<double> &qgrid, const SphericalBessel::JL_table &jK_tab,
   int Kmax, bool vectorQ, bool axialQ, bool scalarQ, bool pseudoscalarQ,
   bool spatialQ, double ridge_eps);

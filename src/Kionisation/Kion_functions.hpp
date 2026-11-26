@@ -340,8 +340,8 @@ void accumulate_multipole_sum(
 
   @details
   The continuum states of each orbital are solved at every E for which the
-  ejected electron energy \f$ \en_c = E + \en_a \f$ lies in
-  (@p ec_min, @p ec_max]. The continuum l are those reached from the orbital
+  ejected electron energy \f$ \en_c = E + \en_a \f$ is above
+  @p ec_min. The continuum l are those reached from the orbital
   by multipoles of rank up to @p Kmax (both parities),
   \f$ j_e = j_a \pm K_{\rm max} \f$, \f$ l_e = j_e \pm 1/2 \f$, clipped to
   @p lc_minmax if given. Parallel over the (orbital, E) pairs.
@@ -361,7 +361,6 @@ void accumulate_multipole_sum(
                         matrix elements, indexed as the core.
   @param lc_minmax      Optional limits on the continuum orbital l.
   @param ec_min         Minimum ejected electron energy, in au.
-  @param ec_max         Maximum ejected electron energy, in au.
   @param force_rescale  Rescale V(r) at large r for the continuum states.
   @param hole_particle  Solve the continuum in the V^(N-1) potential of the
                         hole (include the hole-particle interaction).
@@ -396,7 +395,7 @@ void accumulate_multipole_sum(
 std::vector<FormFactorSet> calculate_formFactors(
   const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
-  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
@@ -456,7 +455,7 @@ struct IonisedOrbital {
 
   @details
   An orbital is ionised if its ejected electron energy
-  \f$ \en_c = \omega + \en_a \f$ lies in (@p ec_min, @p ec_max]. Its continuum
+  \f$ \en_c = \omega + \en_a \f$ is above @p ec_min. Its continuum
   states are solved at that energy, with l from continuum_l_range(), the
   unresolved high-r tail locally averaged (DiracODE::averageTail). In core
   order at each energy; parallel over (energy, orbital, l).
@@ -464,7 +463,6 @@ struct IonisedOrbital {
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
   @param omegas         Energy transfers, in au.
   @param ec_min         Minimum ejected electron energy, in au.
-  @param ec_max         Maximum ejected electron energy, in au.
   @param Kmax           Maximum multipolarity (sets the continuum l range).
   @param lc_minmax      Optional limits on the continuum orbital l.
   @param force_rescale  Rescale V(r) at large r for the continuum states.
@@ -476,7 +474,7 @@ struct IonisedOrbital {
 */
 std::vector<std::vector<IonisedOrbital>> solve_ionised_orbitals(
   const HF::HartreeFock *vHF, const std::vector<double> &omegas, double ec_min,
-  double ec_max, int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
+  int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
   bool force_rescale, bool hole_particle, bool force_orthog);
 
 //------------------------------------------------------------------------------
@@ -600,7 +598,6 @@ std::optional<double> solve_channel_amplitudes(
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
   @param lc_minmax      Optional limits on the continuum orbital l.
   @param ec_min         Minimum ejected electron energy, in au.
-  @param ec_max         Maximum ejected electron energy, in au.
   @param force_rescale  Rescale V(r) at large r for the continuum states.
   @param hole_particle  Solve the continuum in the V^(N-1) potential of the
                         hole (required here; see warning).
@@ -647,7 +644,7 @@ std::optional<double> solve_channel_amplitudes(
 FormFactorsRPA solve_formFactors_RPA(
   const HF::HartreeFock *vHF,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
-  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
@@ -700,7 +697,6 @@ FormFactorsRPA solve_formFactors_RPA(
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
   @param lc_minmax      Optional limits on the continuum orbital l.
   @param ec_min         Minimum ejected electron energy, in au.
-  @param ec_max         Maximum ejected electron energy, in au.
   @param force_rescale  Rescale V(r) at large r for the continuum states.
   @param hole_particle  Solve the continuum in the V^(N-1) potential of the
                         hole (required here; see warning).
@@ -734,7 +730,7 @@ FormFactorsRPA solve_formFactors_RPA(
 FormFactorsRPA calculate_formFactors_RPA(
   const HF::HartreeFock *vHF,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
-  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,

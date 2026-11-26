@@ -887,9 +887,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
                    "include in continuum states. By "
                    "default, will include all allowed values (limitted by "
                    "K_max). This should usually be left blank"},
-     {"ec_minmax",
-      "List of floats (2). Minimum and maximum continuum state energy to "
-      "include (eV). [0.0, 1e99]"},
+     {"ec_min", "Minimum continuum state energy to include (eV). [0.0]"},
      {"each_state",
       "true/false. If true, will output a separate K file for each "
       "(accessible) bound state. Output file will have same name as total, but "
@@ -1162,15 +1160,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
                lc_minmax->at(0), lc_minmax->at(1));
   }
 
-  const auto ec_minmax_eV = input.get<std::array<double, 2>>("ec_minmax");
-  const double ec_min =
-    ec_minmax_eV ? ec_minmax_eV->at(0) / PhysConst::Hartree_eV : 0.0;
-  const double ec_max =
-    ec_minmax_eV ? ec_minmax_eV->at(1) / PhysConst::Hartree_eV : 1.0 / 0.0;
-  if (ec_minmax_eV) {
-    fmt::print("Limitting continuum state energy to: {} <= E/eV <= "
-               "{} ({:.1e} <= E/au <= {:.1e})\n",
-               ec_minmax_eV->at(0), ec_minmax_eV->at(1), ec_min, ec_max);
+  const auto ec_min_eV = input.get<double>("ec_min");
+  const double ec_min = ec_min_eV ? *ec_min_eV / PhysConst::Hartree_eV : 0.0;
+  if (ec_min_eV) {
+    fmt::print("Limitting continuum state energy to: E > {} eV ({:.1e} au)\n",
+               *ec_min_eV, ec_min);
   }
 
   // Bethe-ridge (plane-wave) completion of the multipole sum above Kmax.
@@ -1382,10 +1376,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
       + std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" //
       + (lc_minmax ? std::to_string(lc_minmax->at(0)) + "-" +
                        std::to_string(lc_minmax->at(1)) + "_" :
-                     "")               //
-      + (ec_minmax_eV ? "eclim_" : "") //
-      + (low_q ? "lowq_" : "")         //
-      + (temporal_only ? "T_" : "");   //
+                     "")             //
+      + (ec_min_eV ? "eclim_" : "")  //
+      + (low_q ? "lowq_" : "")       //
+      + (temporal_only ? "T_" : ""); //
     if (vectorQ)
       prefix += "V";
     if (axialQ)
@@ -1457,9 +1451,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
   Kion::FormFactorsRPA factors;
   if (use_rpa) {
     factors = Kion::calculate_formFactors_RPA(
-      wf.vHF(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
-      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
-      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+      wf.vHF(), lc_minmax, ec_min, force_rescale, hole_particle, force_orthog,
+      Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ, axialQ,
+      scalarQ, pseudoscalarQ, spatialQ, rpa_options);
     std::cout << "\n";
 
     // Failed solves were corrected within their own (K, factor) block, from
@@ -1476,10 +1470,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
   } else {
     std::cout << "Calculating form factors:\n";
     factors.bare = Kion::calculate_formFactors(
-      wf.vHF(), bound_states, lc_minmax, ec_min, ec_max, force_rescale,
-      hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab,
-      Kmin, Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ,
-      states_method);
+      wf.vHF(), bound_states, lc_minmax, ec_min, force_rescale, hole_particle,
+      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, states_method);
     std::cout << "\n";
   }
 
@@ -1488,8 +1481,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
   std::vector<Kion::FormFactorSet> dK_ridge;
   if (ridge_correction) {
     dK_ridge = Kion::calculate_ridge_correction(
-      wf.vHF(), bound_states, ec_min, ec_max, Egrid, qgrid, jK_tab, Kmax,
-      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, ridge_eps);
+      wf.vHF(), bound_states, ec_min, Egrid, qgrid, jK_tab, Kmax, vectorQ,
+      axialQ, scalarQ, pseudoscalarQ, spatialQ, ridge_eps);
     std::cout << "\n";
   }
 

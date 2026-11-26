@@ -327,7 +327,7 @@ void add_formFactors(std::vector<FormFactorSet> *K_nk,
 std::vector<FormFactorSet> calculate_formFactors(
   const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
-  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
@@ -364,7 +364,7 @@ std::vector<FormFactorSet> calculate_formFactors(
   for (std::size_t ia = 0; ia < n_core; ++ia) {
     for (std::size_t iE = 0; iE < E_steps; ++iE) {
       const auto ec = Egrid[iE] + core[ia].en();
-      if (ec > ec_min && ec <= ec_max) {
+      if (ec > ec_min) {
         orbital_E_pairs.emplace_back(ia, iE);
       }
     }
@@ -457,7 +457,7 @@ continuum_l_range(const DiracSpinor &Fa, int Kmax,
 //==============================================================================
 std::vector<std::vector<IonisedOrbital>> solve_ionised_orbitals(
   const HF::HartreeFock *vHF, const std::vector<double> &omegas, double ec_min,
-  double ec_max, int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
+  int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
   bool force_rescale, bool hole_particle, bool force_orthog) {
   assert(vHF != nullptr);
   const auto &core = vHF->core();
@@ -468,7 +468,7 @@ std::vector<std::vector<IonisedOrbital>> solve_ionised_orbitals(
   for (std::size_t j = 0; j < omegas.size(); ++j) {
     for (std::size_t ia = 0; ia < core.size(); ++ia) {
       const auto ec = omegas[j] + core[ia].en();
-      if (ec > ec_min && ec <= ec_max) {
+      if (ec > ec_min) {
         ionised[j].push_back({ia, ContinuumOrbitals(vHF)});
       }
     }
@@ -653,7 +653,7 @@ solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
 FormFactorsRPA solve_formFactors_RPA(
   const HF::HartreeFock *vHF,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
-  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
@@ -694,7 +694,7 @@ FormFactorsRPA solve_formFactors_RPA(
     const auto iE = E_steps - 1 - i;
     for (const auto &Fa : core) {
       const auto ec = Egrid[iE] + Fa.en();
-      if (ec > ec_min && ec <= ec_max) {
+      if (ec > ec_min) {
         active_E.push_back(iE);
         break;
       }
@@ -775,7 +775,7 @@ FormFactorsRPA solve_formFactors_RPA(
     }
 
     const auto ionised =
-      solve_ionised_orbitals(vHF, omegas, ec_min, ec_max, Kmax, lc_minmax,
+      solve_ionised_orbitals(vHF, omegas, ec_min, Kmax, lc_minmax,
                              force_rescale, hole_particle, force_orthog);
     std::vector<std::vector<IonisationChannel>> channels(n_batch);
     for (std::size_t jb = 0; jb < n_batch; ++jb) {
@@ -956,7 +956,7 @@ FormFactorsRPA solve_formFactors_RPA(
 FormFactorsRPA calculate_formFactors_RPA(
   const HF::HartreeFock *vHF,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
-  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
@@ -1003,7 +1003,7 @@ FormFactorsRPA calculate_formFactors_RPA(
     std::optional<std::size_t> first, last;
     for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
       const auto ec = Egrid[E_region[jE]] + Fa.en();
-      if (ec > ec_min && ec <= ec_max) {
+      if (ec > ec_min) {
         if (!first) {
           first = jE;
         }
@@ -1045,11 +1045,10 @@ FormFactorsRPA calculate_formFactors_RPA(
   }
   if (solve_rpa) {
     fmt::print("Calculating RPA form factors:\n");
-    block = solve_formFactors_RPA(vHF, lc_minmax, ec_min, ec_max, force_rescale,
-                                  hole_particle, force_orthog, Egrid_solved,
-                                  qgrid_solved, diagonal_Eq, low_q, jK_tab,
-                                  Kmin, Kmax_rpa, vectorQ, axialQ, scalarQ,
-                                  pseudoscalarQ, spatialQ, rpa_options);
+    block = solve_formFactors_RPA(
+      vHF, lc_minmax, ec_min, force_rescale, hole_particle, force_orthog,
+      Egrid_solved, qgrid_solved, diagonal_Eq, low_q, jK_tab, Kmin, Kmax_rpa,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
   }
 
   // The bare factors: every multipole over the full grids (what a run
@@ -1057,7 +1056,7 @@ FormFactorsRPA calculate_formFactors_RPA(
   // (which the RPA correction is relative to), and the higher ones
   const auto bare_formFactors = [&](int K_first, int K_last) {
     return calculate_formFactors(
-      vHF, vHF->core(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+      vHF, vHF->core(), lc_minmax, ec_min, force_rescale, hole_particle,
       force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, K_first, K_last,
       vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF,
       false);
@@ -1381,11 +1380,13 @@ LinAlg::Matrix<double> interpolate_log_bilinear(
 std::size_t check_radial_grid_q(double qmax_au, const Grid &rgrid, bool print) {
   auto required_num_points = rgrid.num_points();
 
-  // *Very* rough estimate of good aximum q range.
+  // *Very* rough estimate of good aximum q range: the grid must have at
+  // least points_per_wavelength points per wavelength of q, 2*pi/q, at r_q
   const auto r_q = 1.0;
+  const auto points_per_wavelength = 8.0;
   const auto i = rgrid.getIndex(r_q);
   const auto dr_q = rgrid.drdu(i) * rgrid.du();
-  const auto qmax_targ = 2.0 * M_PI / (3.0 * dr_q);
+  const auto qmax_targ = 2.0 * M_PI / (points_per_wavelength * dr_q);
   if (print) {
     std::cout << "\n"
               << "Check grid for q_max:\n";
@@ -1394,7 +1395,7 @@ std::size_t check_radial_grid_q(double qmax_au, const Grid &rgrid, bool print) {
   }
   if (qmax_au > qmax_targ) {
     // dr required at r_q for qmax (same formula, inverted):
-    const auto dr_targ = 2.0 * M_PI / (8.0 * qmax_au);
+    const auto dr_targ = 2.0 * M_PI / (points_per_wavelength * qmax_au);
     // num_points required (same r0, rmax, b):
     const auto n_q = Grid::calc_num_points_from_du(
       rgrid.r0(), rgrid.rmax(), dr_targ / rgrid.drdu(i), rgrid.type(),
@@ -1438,10 +1439,11 @@ std::size_t check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha,
               << "; consider changing to loglinear\n";
   }
 
-  // E check: grid must resolve the continuum oscillations at Emax
-  // (RequiredContinuumGrid: 15 points-per-wavelength at the coarsest
-  // point, as required to store the state pointwise to rmax):
-  const auto req = DiracODE::RequiredContinuumGrid(Emax_au, rgrid, 10.0, alpha);
+  // E check: grid must resolve the continuum oscillations at Emax, with 15
+  // points per wavelength at the coarsest point (rmax). A continuum state is
+  // stored pointwise wherever there are at least 10 (solveContinuum), so the
+  // state is then stored to rmax, with a margin:
+  const auto req = DiracODE::RequiredContinuumGrid(Emax_au, rgrid, 15.0, alpha);
 
   if (print) {
     fmt::print("\nGrid check for continuum states: E_max = {:.3g} au:\n"

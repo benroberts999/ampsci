@@ -47,9 +47,9 @@ struct GridRequirements {
   @brief Grid parameters required to safely store (pointwise) a continuum state of energy en on the entire grid.
   @details
   A continuum state is stored pointwise only where the grid spacing gives
-  at least N_ppw points per wavelength; beyond that solveContinuum() zeroes
-  the solution (see Fa.max_pt()). This checks the grid against the largest
-  spacing (the last point) - the constraint is always at large r, where
+  at least 10 points per wavelength; beyond that solveContinuum() zeroes
+  the solution (see Fa.max_pt()). This requires @p N_ppw points per
+  wavelength at the largest spacing (the last point) - the constraint is always at large r, where
   the grid is coarsest. Each returned value assumes the other grid
   parameters are unchanged. The b formula assumes a loglinear grid; b is
   clamped from below at 0.05 (below that, even a nearly-linear grid is too
@@ -60,8 +60,8 @@ struct GridRequirements {
   (e.g., 1.9x shorter at en = 1e5 au).
   @param en     Continuum energy (should be the largest energy required).
   @param gr     The radial grid.
-  @param N_ppw  Required points per wavelength (default 20, as used by
-  solveContinuum).
+  @param N_ppw  Required points per wavelength (default 20; at least 10, as
+  used by solveContinuum, for the state to be stored to rmax).
   @param alpha  Fine-structure constant.
 */
 GridRequirements RequiredContinuumGrid(double en, const Grid &gr,

@@ -362,11 +362,11 @@ TEST_CASE("Kion: ridge correction hydrogen Kmax independence",
     const auto method = Kion::AtomicMethod::Zeff;
     const auto bound = Kion::model_bound_states(*wf.vHF(), method);
     const auto DW = Kion::calculate_formFactors(
-      wf.vHF(), bound, {}, 0.0, 1.0e99, false, false, true, Egrid, qgrid, false,
-      false, jK_tab, 0, Kmax, true, false, false, false, false, method);
+      wf.vHF(), bound, {}, 0.0, false, false, true, Egrid, qgrid, false, false,
+      jK_tab, 0, Kmax, true, false, false, false, false, method);
     const auto dK = Kion::calculate_ridge_correction(
-      wf.vHF(), bound, 0.0, 1.0e99, Egrid, qgrid, jK_tab, Kmax, true, false,
-      false, false, false, 1.0e-4);
+      wf.vHF(), bound, 0.0, Egrid, qgrid, jK_tab, Kmax, true, false, false,
+      false, false, 1.0e-4);
     for (std::size_t iE = 0; iE < 2; ++iE) {
       const auto iq = ridge_iq[iE];
       const auto dw = DW[0][0](iE, iq);

@@ -287,7 +287,7 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
 //==============================================================================
 std::vector<FormFactorSet> calculate_ridge_correction(
   const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
-  double ec_min, double ec_max, const std::vector<double> &Egrid,
+  double ec_min, const std::vector<double> &Egrid,
   const std::vector<double> &qgrid, const SphericalBessel::JL_table &jK_tab,
   int Kmax, bool vectorQ, bool axialQ, bool scalarQ, bool pseudoscalarQ,
   bool spatialQ, double ridge_eps) {
@@ -371,7 +371,7 @@ std::vector<FormFactorSet> calculate_ridge_correction(
       continue;
     for (std::size_t iE = 0; iE < E_steps; ++iE) {
       const auto ec = Egrid[iE] + core[ia].en();
-      if (ec > ec_min && ec <= ec_max) {
+      if (ec > ec_min) {
         orbital_E_pairs.emplace_back(ia, iE);
       }
     }
