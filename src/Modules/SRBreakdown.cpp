@@ -82,31 +82,6 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
     legs.push_back(*v_basis);
   }
 
-  std::cout << "\n";
-  // Coulomb integrals
-  Coulomb::YkTable yk;
-  yk.extend_angular(DiracSpinor::max_tj(basis));
-  yk.calculate(basis);
-  Coulomb::QkTable qk;
-  if (use_Qk) {
-    const auto Qk_fname = wf.identity() + ".qk.abf";
-    qk.read(Qk_fname);
-    const auto existing = qk.count();
-    qk.fill(basis, yk);
-    if (qk.count() != existing) {
-      qk.write(Qk_fname);
-    }
-  }
-
-  // Operator matrix elements (with RPA, if requested)
-  const auto rpa = ExternalField::make_rpa(rpa_method, h.get(), wf.vHF(), true,
-                                           wf.basis(), wf.identity());
-  if (rpa) {
-    rpa->solve_core(0.0);
-  }
-  const auto h_table =
-    Amplitudes::me_table(basis, h.get(), rpa.get(), nullptr, 0.0);
-
   std::cout << "\nStructure radiation, broken up by Feynman diagram: "
             << h->name() << "\n";
   std::cout << "Reduced matrix elements <w||h||v>, omega = e_w - e_v ("
@@ -130,6 +105,31 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     std::cout << "\n";
   }
+  std::cout << "\n";
+
+  // Coulomb integrals
+  Coulomb::YkTable yk;
+  yk.extend_angular(DiracSpinor::max_tj(basis));
+  yk.calculate(basis);
+  Coulomb::QkTable qk;
+  if (use_Qk) {
+    const auto Qk_fname = wf.identity() + ".qk.abf";
+    qk.read(Qk_fname);
+    const auto existing = qk.count();
+    qk.fill(basis, yk);
+    if (qk.count() != existing) {
+      qk.write(Qk_fname);
+    }
+  }
+
+  // Operator matrix elements (with RPA, if requested)
+  const auto rpa = ExternalField::make_rpa(rpa_method, h.get(), wf.vHF(), true,
+                                           wf.basis(), wf.identity());
+  if (rpa) {
+    rpa->solve_core(0.0);
+  }
+  const auto h_table =
+    Amplitudes::me_table(basis, h.get(), rpa.get(), nullptr, 0.0);
   std::cout << "\n";
 
   // Values are printed as +d.[n_digits]e-xx; columns at least as wide as the

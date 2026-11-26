@@ -6,6 +6,9 @@
 #include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/format.hpp"
+#include <cmath>
+#include <optional>
 
 namespace Module {
 
@@ -38,20 +41,36 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto n_min_core = input.get("n_min_core", 5);
   const bool includeG = input.get("includeG", false);
   const bool includeSR2 = input.get("includeSR2", false);
-  const auto gsize = (imax - i0) / stride;
+  // Sub-grid as for the Correlations Feynman (so Q*Pi*Q cache can be shared)
+  const auto gsize = (imax - i0) / stride + 1;
   const auto screening = input.get("screening", false);
+
+  // Real part of the frequency contour, chosen as for the Correlations
+  // Feynman: with hole-particle, the loop poles lie closer to zero
+  const auto hp_excitation =
+    screening ?
+      std::optional{MBPT::lowest_hp_excitation(*wf.vHF(), n_min_core)} :
+      std::nullopt;
+  const auto omre =
+    -std::abs(MBPT::best_omre(wf.core(), wf.valence(), true, hp_excitation));
+
   MBPT::FeynmanOptions options{};
-  options.screening = MBPT::Screening::include;
-  options.hole_particle = MBPT::HoleParticle::include;
+  options.omre = omre;
+  if (screening) {
+    options.screening = MBPT::Screening::include;
+    options.hole_particle = MBPT::HoleParticle::include;
+  }
 
-  auto Fyn = (screening) ?
-               MBPT::FeynmanSR(wf.vHF(), i0, stride, gsize, options, n_min_core,
-                               includeG, true, "tempqpq1") :
-               MBPT::FeynmanSR(wf.vHF(), i0, stride, gsize, {}, n_min_core,
-                               includeG, true, "tempqpq1");
+  fmt::print("Sigma sub-grid: r=({:.1e}, {:.1f})aB with {} points. "
+             "[stride={}]\n",
+             wf.grid().r(i0), wf.grid().r(i0 + stride * (gsize - 1)), gsize,
+             stride);
 
-  std::cout << "Grid size: " << gsize << ", " << "Stride: " << stride
-            << ", Rmax: " << rmax << "\n";
+  // Same disk-cache prefix as the Correlations Feynman: reads its Q*Pi*Q
+  // when every option and the grids match
+  auto Fyn = MBPT::FeynmanSR(wf.vHF(), i0, stride, gsize, options, n_min_core,
+                             includeG, true, wf.identity());
+
   std::cout << "Coulomb Screening: " << screening << ", Include G:" << includeG
             << "\n";
   std::cout << "Include SR2: " << includeSR2 << "\n";
