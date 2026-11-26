@@ -324,6 +324,56 @@ void add_formFactors(std::vector<FormFactorSet> *K_nk,
 }
 
 //==============================================================================
+void insert_formFactors(std::vector<FormFactorSet> *K_nk,
+                        const std::vector<FormFactorSet> &K_part,
+                        const std::vector<std::size_t> &E_indices) {
+  assert(K_nk != nullptr && K_nk->size() == K_part.size());
+  for (std::size_t ia = 0; ia < K_part.size(); ++ia) {
+    for (std::size_t i = 0; i < K_part[ia].size(); ++i) {
+      auto &K_full = (*K_nk)[ia][i];
+      const auto &K_rows = K_part[ia][i];
+      if (K_full.empty() || K_rows.empty())
+        continue;
+      assert(K_rows.rows() == E_indices.size());
+      assert(K_rows.cols() == K_full.cols());
+      for (std::size_t j = 0; j < E_indices.size(); ++j) {
+        for (std::size_t iq = 0; iq < K_rows.cols(); ++iq) {
+          K_full(E_indices[j], iq) = K_rows(j, iq);
+        }
+      }
+    }
+  }
+}
+
+//==============================================================================
+std::vector<std::vector<std::size_t>>
+energy_decades(const std::vector<double> &energies, double first_decade_max) {
+  assert(first_decade_max > 0.0);
+  std::vector<std::vector<std::size_t>> decades;
+  for (std::size_t i = 0; i < energies.size(); ++i) {
+    std::size_t decade = 0;
+    double decade_max = first_decade_max;
+    while (energies[i] > decade_max) {
+      decade_max *= 10.0;
+      ++decade;
+    }
+    if (decade >= decades.size()) {
+      decades.resize(decade + 1);
+    }
+    decades[decade].push_back(i);
+  }
+
+  // Leave out the decades with no energies
+  std::vector<std::vector<std::size_t>> filled_decades;
+  for (auto &decade : decades) {
+    if (!decade.empty()) {
+      filled_decades.push_back(std::move(decade));
+    }
+  }
+  return filled_decades;
+}
+
+//==============================================================================
 std::vector<FormFactorSet> calculate_formFactors(
   const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
@@ -1481,7 +1531,8 @@ void write_to_file_xyz(const std::string &filename,
                        const std::vector<std::string> &titles,
                        const std::vector<std::string> &descriptions,
                        std::vector<LinAlg::Matrix_view<const double>> factors,
-                       Units units, int num_digits, bool diagonal) {
+                       Units units, int num_digits, bool diagonal,
+                       const std::string &radial_grid) {
 
   assert(titles.size() == factors.size() && "Each factor must have a title");
 
@@ -1549,6 +1600,9 @@ void write_to_file_xyz(const std::string &filename,
                q_grid.size(), q_grid.front() * unit_q, q_grid.back() * unit_q,
                unit_str);
   }
+  if (!radial_grid.empty()) {
+    fmt::print(out_file, "# r grid: {}\n", radial_grid);
+  }
   out_file << "################################################################"
               "################\n";
 
@@ -1587,13 +1641,11 @@ void write_to_file_xyz(const std::string &filename,
 }
 
 //==============================================================================
-void write_to_file_xyz_13(const std::string &filename,
-                          const std::vector<double> &E_grid,
-                          const std::vector<double> &q_grid,
-                          const std::vector<std::string> &titles,
-                          const std::vector<std::string> &descriptions,
-                          const FormFactorSet &K_factors, Units units,
-                          int num_digits, bool diagonal) {
+void write_to_file_xyz_13(
+  const std::string &filename, const std::vector<double> &E_grid,
+  const std::vector<double> &q_grid, const std::vector<std::string> &titles,
+  const std::vector<std::string> &descriptions, const FormFactorSet &K_factors,
+  Units units, int num_digits, bool diagonal, const std::string &radial_grid) {
 
   const auto &K_VT = K_factors[0];  // Vector: temporal
   const auto &K_VE = K_factors[1];  // Vector: electric
@@ -1613,7 +1665,7 @@ void write_to_file_xyz_13(const std::string &filename,
     K_VT, K_VE, K_VM, K_VL, K_X, K_T5, K_E5, K_M5, K_L5, K_X5, K_Z, K_S, K_S5};
 
   return write_to_file_xyz(filename, E_grid, q_grid, titles, descriptions,
-                           factors, units, num_digits, diagonal);
+                           factors, units, num_digits, diagonal, radial_grid);
 }
 
 //==============================================================================

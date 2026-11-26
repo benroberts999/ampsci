@@ -27,6 +27,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <numeric>
+#include <optional>
+#include <string>
 
 namespace Module {
 
@@ -835,7 +838,7 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 //==============================================================================
-void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
+void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer("formFactors");
 
   input.check(
@@ -934,10 +937,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
      {"Zeff", "true/false. Use H-like (Zeff) bound and continuum states, with "
               "Zeff = n*sqrt(-2*en) from each binding energy; the same as "
               "method = Zeff. [false]"},
-     {"auto_grid", "true/false. If the radial grid is not dense enough for "
-                   "the largest E and q, Hartree-Fock is solved again on a "
-                   "grid with more points (same r0, rmax, b), which is then "
-                   "used here. If false, the grid is used as it is. [true]"}});
+     {"auto_grid",
+      "true/false. The energies are solved one decade at a time (E <= 100 "
+      "eV, E <= 1000 eV, ...), each on a radial grid with enough points for "
+      "its largest E and the largest q (same r0, rmax, b; never fewer points "
+      "than the input grid). Hartree-Fock is solved again on each such grid. "
+      "If false, the input grid is used as it is. [true]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -996,10 +1001,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
   // Set up the q grid
   const auto qgrid = qip::logarithmic_range(q_min, q_max, q_steps);
 
-  const auto alpha_ratio = wf_input.alpha() / PhysConst::alpha;
+  const auto alpha_ratio = wf.alpha() / PhysConst::alpha;
   if (std::abs(alpha_ratio - 1) > 0.001) {
     fmt::print("\nEffective speed of light: c_eff = {} c\n", 1.0 / alpha_ratio);
-    fmt::print("(dα^2 = {})", wf_input.dalpha2());
+    fmt::print("(dα^2 = {})", wf.dalpha2());
   }
 
   std::cout << "\nEnergy/Momentum exchange grids:\n";
@@ -1016,50 +1021,43 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
 
   //----------------------------------------------------------------------------
 
-  // If the grid is not dense enough for the maximum energy/momentum,
-  // Hartree-Fock is solved again on a grid with enough points (same r0, rmax,
-  // b), which is used for everything below. It is solved from the nucleus and
-  // core configuration alone, so only if the potential has no other parts
-  // (Breit, QED, extra potential)
+  // auto_grid: Hartree-Fock is solved again on a radial grid dense enough for
+  // the energies and momenta required (same r0, rmax, b; never fewer points
+  // than the input grid). It is solved from the nucleus and core configuration
+  // alone, so only if the potential has no other parts (Breit, QED, extra
+  // potential)
   const auto auto_grid = input.get("auto_grid", true);
-  const auto vHF_input = wf_input.vHF();
   const bool extra_potential =
-    wf_input.vnuc() !=
-    Nuclear::formPotential(wf_input.nucleus(), wf_input.grid().r());
-  const bool can_solve_again = vHF_input->vBreit() == nullptr &&
-                               vHF_input->Vrad() == nullptr && !extra_potential;
-  const bool solve_dense_grid = auto_grid && can_solve_again;
+    wf.vnuc() != Nuclear::formPotential(wf.nucleus(), wf.grid().r());
+  const bool can_solve_again = wf.vHF()->vBreit() == nullptr &&
+                               wf.vHF()->Vrad() == nullptr && !extra_potential;
+  const bool use_auto_grid = auto_grid && can_solve_again;
 
-  // Check to see if grid is reasonable for maximum energy/momentum; returns
-  // the num_points that would be enough. Prints warning to screen if not the
-  // case, unless the grid is to be replaced
-  const auto required_num_points = Kion::check_radial_grid(
-    Emax_au, q_max, wf_input.grid(), wf_input.alpha(), !solve_dense_grid);
-  const bool grid_too_coarse =
-    required_num_points > wf_input.grid().num_points();
-
-  if (auto_grid && !can_solve_again && grid_too_coarse) {
-    fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
-    fmt::print("auto_grid not available with Breit, QED, or an extra "
-               "potential. Using the grid as it is\n");
+  // Without auto_grid: check to see if grid is reasonable for maximum
+  // energy/momentum. Prints warning to screen if not the case
+  if (!use_auto_grid) {
+    const auto required_num_points =
+      Kion::check_radial_grid(Emax_au, q_max, wf.grid(), wf.alpha());
+    if (auto_grid && required_num_points > wf.grid().num_points()) {
+      fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
+      fmt::print("auto_grid not available with Breit, QED, or an extra "
+                 "potential. Using the grid as it is\n");
+    }
   }
 
-  std::optional<Wavefunction> wf_dense;
-  if (solve_dense_grid && grid_too_coarse) {
-    // Rounded up to a multiple of 1000
-    const auto dense_num_points = 1000 * ((required_num_points + 999) / 1000);
-    auto grid_params = wf_input.grid().params();
-    grid_params.num_points = dense_num_points;
-    fmt::print("\nUsing auto_grid:\n"
-               "Re-solving Hartree-Fock on a grid with num_points "
-               "= {} (was {})\n",
-               dense_num_points, wf_input.grid().num_points());
-    wf_dense.emplace(grid_params, wf_input.nucleus(), alpha_ratio,
-                     wf_input.run_label());
-    wf_dense->solve_core(vHF_input->method(), wf_input.coreConfiguration());
-    std::cout << wf_dense->grid().gridParameters() << "\n";
+  // The energies are solved in groups, each on its own radial grid; each
+  // group is the indices into Egrid of its energies. With auto_grid, one
+  // group for each decade of the energy (E <= 100 eV, E <= 1000 eV, ...), so
+  // that the dense grid required for the largest energies is not also used
+  // for the small ones. Otherwise, one group on the input grid
+  std::vector<std::vector<std::size_t>> E_groups;
+  if (use_auto_grid) {
+    E_groups = Kion::energy_decades(Egrid, 100.0 / PhysConst::Hartree_eV);
+  } else {
+    std::vector<std::size_t> all_energies(Egrid.size());
+    std::iota(all_energies.begin(), all_energies.end(), std::size_t{0});
+    E_groups.push_back(all_energies);
   }
-  const Wavefunction &wf = wf_dense ? *wf_dense : wf_input;
 
   //----------------------------------------------------------------------------
 
@@ -1316,13 +1314,6 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
   }
   std::cout << "\n";
 
-  // Spherical Bessel lookup table, on the q grid (in the diagonal case, on
-  // q = E/c at each energy). Each operator stores a pointer to this table.
-  std::cout << "Filling jL spherical Bessel table.." << std::flush;
-  const auto q_table = diagonal_Eq ? Egrid * PhysConst::alpha : qgrid;
-  const SphericalBessel::JL_table jK_tab(Kmax + 1, q_table, wf.grid().r());
-  std::cout << "..done\n\n" << std::flush;
-
   // Titles/descriptions of each K(E,q) form factor, in the order of
   // Kion::FormFactorSet (which is the order of the output file columns):
   // Vector (V_T, V_E, V_M, V_L, X),
@@ -1388,6 +1379,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
       prefix += "S";
     if (pseudoscalarQ)
       prefix += "P";
+    // Radial grid: number of points, or 'auto'
+    prefix += use_auto_grid ? std::string{"_auto"} :
+                              "_" + std::to_string(wf.grid().num_points());
     if (!label.empty()) {
       prefix += "_" + label;
     }
@@ -1406,9 +1400,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
     std::cout << std::flush;
   }
 
-  // Bound states used in the matrix elements: the HF orbitals, or (Zeff
-  // methods) their H-like versions
-  const auto bound_states = Kion::model_bound_states(*wf.vHF(), states_method);
+  // Radial grid parameters, for the header of the output files. With
+  // auto_grid, num_points is that of each energy block (set below)
+  std::vector<std::size_t> block_num_points;
+  std::string radial_grid_text;
 
   // Writes the per-orbital files (if requested), then the total
   const auto write_factors = [&](const std::string &prefix,
@@ -1417,7 +1412,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
       for (std::size_t ia = 0; ia < wf.core().size(); ++ia) {
         Kion::write_to_file_xyz_13(
           wf.core()[ia].shortSymbol() + "." + prefix + ".txt", Egrid, qgrid,
-          titles, descriptions, K_nk[ia], units, num_digits, diagonal_Eq);
+          titles, descriptions, K_nk[ia], units, num_digits, diagonal_Eq,
+          radial_grid_text);
       }
     }
     // Total over the orbitals (factors not calculated stay empty)
@@ -1442,55 +1438,154 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
     std::cout << "\n";
     Kion::write_to_file_xyz_13(prefix + ".txt", Egrid, qgrid, titles,
                                descriptions, total, units, num_digits,
-                               diagonal_Eq);
+                               diagonal_Eq, radial_grid_text);
     std::cout << "\n";
   };
 
   // Form factors: bare (HF or Zeff states) and, for method=RPA, with RPA.
-  // With RPA, both are written to disk (both are calculated anyway)
+  // With RPA, both are written to disk (both are calculated anyway).
+  // Calculated for each group of energies in turn, on the radial grid of the
+  // group, and copied into the full table
+  const auto n_core = wf.core().size();
+  const auto empty_factors =
+    Kion::allocate_formFactors(Egrid.size(), qgrid.size(), vectorQ, axialQ,
+                               scalarQ, pseudoscalarQ, spatialQ);
   Kion::FormFactorsRPA factors;
+  factors.bare.assign(n_core, empty_factors);
   if (use_rpa) {
-    factors = Kion::calculate_formFactors_RPA(
-      wf.vHF(), lc_minmax, ec_min, force_rescale, hole_particle, force_orthog,
-      Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ, axialQ,
-      scalarQ, pseudoscalarQ, spatialQ, rpa_options);
-    std::cout << "\n";
+    factors.rpa.assign(n_core, empty_factors);
+  }
 
-    // Failed solves were corrected within their own (K, factor) block, from
-    // the converged neighbours in E and q, before the sum over K
-    if (factors.n_failed > 0) {
-      fmt::print("\nNote: RPA not converged (eps > {:.0e}) at "
-                 "{} of {} (E, q, operator, K) points:\n - dRPA interpolated "
-                 "in E/q for "
-                 "{}; no-RPA used for {}\n\n",
-                 rpa_options.eps_fail, factors.n_failed, factors.n_solves,
-                 factors.n_interpolated,
-                 factors.n_failed - factors.n_interpolated);
+  // Hartree-Fock on the dense grid; kept between groups, since consecutive
+  // groups often require the same grid
+  std::optional<Wavefunction> wf_dense;
+
+  for (std::size_t i_group = 0; i_group < E_groups.size(); ++i_group) {
+    const auto &E_indices = E_groups[i_group];
+
+    std::vector<double> Egrid_group;
+    for (const auto iE : E_indices) {
+      Egrid_group.push_back(Egrid[iE]);
     }
-  } else {
-    std::cout << "Calculating form factors:\n";
-    factors.bare = Kion::calculate_formFactors(
-      wf.vHF(), bound_states, lc_minmax, ec_min, force_rescale, hole_particle,
-      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
-      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, states_method);
-    std::cout << "\n";
-  }
 
-  // Bethe-ridge correction: plane waves and the bound states only, so the
-  // same for every amplitude method. Empty if not requested
-  std::vector<Kion::FormFactorSet> dK_ridge;
-  if (ridge_correction) {
-    dK_ridge = Kion::calculate_ridge_correction(
-      wf.vHF(), bound_states, ec_min, Egrid, qgrid, jK_tab, Kmax, vectorQ,
-      axialQ, scalarQ, pseudoscalarQ, spatialQ, ridge_eps);
-    std::cout << "\n";
-  }
+    // Radial grid of the group: enough points for its largest energy, and
+    // the largest momentum (rounded up to a multiple of 1000); the input
+    // grid, if that is dense enough
+    const Wavefunction *wf_group = &wf;
+    if (use_auto_grid) {
+      const auto [E_first, E_last] =
+        std::minmax_element(Egrid_group.begin(), Egrid_group.end());
+      fmt::print("Energy block {}/{}\n", i_group + 1, E_groups.size());
+      fmt::print("Energy: [{:.4g}, {:.4g}] eV, in {} steps\n",
+                 *E_first * PhysConst::Hartree_eV,
+                 *E_last * PhysConst::Hartree_eV, Egrid_group.size());
 
-  if (!dK_ridge.empty()) {
-    Kion::add_formFactors(&factors.bare, dK_ridge);
+      const auto required_num_points =
+        Kion::check_radial_grid(*E_last, q_max, wf.grid(), wf.alpha(), false);
+
+      if (required_num_points > wf.grid().num_points()) {
+        const auto dense_num_points =
+          1000 * ((required_num_points + 999) / 1000);
+        fmt::print("Radial grid: num_points = {}\n", dense_num_points);
+        if (!wf_dense || wf_dense->grid().num_points() != dense_num_points) {
+          auto grid_params = wf.grid().params();
+          grid_params.num_points = dense_num_points;
+          std::cout << "Re-solving Hartree-Fock:\n";
+          wf_dense.emplace(grid_params, wf.nucleus(), alpha_ratio,
+                           wf.run_label());
+          wf_dense->solve_core(wf.vHF()->method(), wf.coreConfiguration());
+        }
+        wf_group = &*wf_dense;
+
+        // Largest change in a core energy, relative to the input grid
+        double max_eps = 0.0;
+        std::string max_eps_state;
+        for (std::size_t ia = 0; ia < n_core; ++ia) {
+          const auto eps =
+            std::abs(wf_dense->core()[ia].en() / wf.core()[ia].en() - 1.0);
+          if (eps > max_eps) {
+            max_eps = eps;
+            max_eps_state = wf.core()[ia].shortSymbol();
+          }
+        }
+        fmt::print("Core energies: eps = {:.1e} [{}]\n", max_eps,
+                   max_eps_state);
+      } else {
+        fmt::print("Radial grid: num_points = {}\n", wf.grid().num_points());
+      }
+    }
+    const auto vHF_group = wf_group->vHF();
+    block_num_points.push_back(wf_group->grid().num_points());
+
+    // Spherical Bessel lookup table, on the q grid (in the diagonal case, on
+    // q = E/c at each energy). Each operator stores a pointer to this table.
+    std::cout << "Filling jL spherical Bessel table.." << std::flush;
+    const auto q_table = diagonal_Eq ? Egrid_group * PhysConst::alpha : qgrid;
+    const SphericalBessel::JL_table jK_tab(Kmax + 1, q_table,
+                                           wf_group->grid().r());
+    std::cout << "..done\n\n" << std::flush;
+
+    // Bound states used in the matrix elements: the HF orbitals, or (Zeff
+    // methods) their H-like versions
+    const auto bound_states =
+      Kion::model_bound_states(*vHF_group, states_method);
+
+    Kion::FormFactorsRPA group_factors;
     if (use_rpa) {
-      Kion::add_formFactors(&factors.rpa, dK_ridge);
+      group_factors = Kion::calculate_formFactors_RPA(
+        vHF_group, lc_minmax, ec_min, force_rescale, hole_particle,
+        force_orthog, Egrid_group, qgrid, diagonal_Eq, low_q, jK_tab, Kmin,
+        Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+      std::cout << "\n";
+      factors.n_solves += group_factors.n_solves;
+      factors.n_failed += group_factors.n_failed;
+      factors.n_interpolated += group_factors.n_interpolated;
+    } else {
+      std::cout << "Calculating form factors:\n";
+      group_factors.bare = Kion::calculate_formFactors(
+        vHF_group, bound_states, lc_minmax, ec_min, force_rescale,
+        hole_particle, force_orthog, Egrid_group, qgrid, diagonal_Eq, low_q,
+        jK_tab, Kmin, Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ,
+        states_method);
+      std::cout << "\n";
     }
+
+    // Bethe-ridge correction: plane waves and the bound states only, so the
+    // same for every amplitude method
+    if (ridge_correction) {
+      const auto dK_ridge = Kion::calculate_ridge_correction(
+        vHF_group, bound_states, ec_min, Egrid_group, qgrid, jK_tab, Kmax,
+        vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, ridge_eps);
+      std::cout << "\n";
+      Kion::add_formFactors(&group_factors.bare, dK_ridge);
+      if (use_rpa) {
+        Kion::add_formFactors(&group_factors.rpa, dK_ridge);
+      }
+    }
+
+    Kion::insert_formFactors(&factors.bare, group_factors.bare, E_indices);
+    if (use_rpa) {
+      Kion::insert_formFactors(&factors.rpa, group_factors.rpa, E_indices);
+    }
+  }
+  radial_grid_text =
+    fmt::format("r0 = {:g}, rmax = {:g}, num_points = {}, b = {:g}",
+                wf.grid().r0(), wf.grid().rmax(),
+                use_auto_grid ? fmt::format("auto ({}, by energy block)",
+                                            fmt::join(block_num_points, ", ")) :
+                                std::to_string(wf.grid().num_points()),
+                wf.grid().loglin_b());
+
+  // Failed solves were corrected within their own (K, factor) block, from
+  // the converged neighbours in E and q, before the sum over K
+  if (factors.n_failed > 0) {
+    fmt::print("\nNote: RPA not converged (eps > {:.0e}) at "
+               "{} of {} (E, q, operator, K) points:\n - dRPA interpolated "
+               "in E/q for "
+               "{}; no-RPA used for {}\n\n",
+               rpa_options.eps_fail, factors.n_failed, factors.n_solves,
+               factors.n_interpolated,
+               factors.n_failed - factors.n_interpolated);
   }
 
   if (use_rpa) {

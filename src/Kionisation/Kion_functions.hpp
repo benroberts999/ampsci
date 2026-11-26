@@ -409,6 +409,32 @@ void add_formFactors(std::vector<FormFactorSet> *K_nk,
                      const std::vector<FormFactorSet> &dK);
 
 //------------------------------------------------------------------------------
+//! Copies the factors of each orbital of K_part, calculated at some of the
+//! energies, into those of K_nk (same orbitals, same momentum transfers): row
+//! j of K_part goes to row E_indices[j] of K_nk. Factors not allocated in
+//! either are skipped
+void insert_formFactors(std::vector<FormFactorSet> *K_nk,
+                        const std::vector<FormFactorSet> &K_part,
+                        const std::vector<std::size_t> &E_indices);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Splits a list of energies into decades.
+
+  @details
+  The first decade is every energy up to @p first_decade_max; each one after
+  spans a factor of 10 (up to 10, 100, ... times @p first_decade_max). Decades
+  with no energies are left out.
+
+  @param energies          The energies (any order).
+  @param first_decade_max  Upper limit of the first decade (same units).
+  @return For each decade, in ascending order of energy, the indices into
+          @p energies of its energies (in the order of @p energies).
+*/
+std::vector<std::vector<std::size_t>>
+energy_decades(const std::vector<double> &energies, double first_decade_max);
+
+//------------------------------------------------------------------------------
 //! One ionisation channel: a hole in a core orbital, and the ejected
 //! (continuum) state
 struct IonisationChannel {
@@ -1012,6 +1038,8 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
   @param num_digits    Digits printed for each value (clamped to 3 - 16).
   @param diagonal      Momentum transfer equal to the energy transfer: q is
                        written as alpha*E, and @p q_grid is not used.
+  @param radial_grid   Parameters of the radial grid, as text for the header
+                       ('r grid' line; left out if empty).
 */
 void write_to_file_xyz(const std::string &filename,
                        const std::vector<double> &E_grid,
@@ -1020,7 +1048,8 @@ void write_to_file_xyz(const std::string &filename,
                        const std::vector<std::string> &descriptions,
                        std::vector<LinAlg::Matrix_view<const double>> factors,
                        Units units = Units::Particle, int num_digits = 6,
-                       bool diagonal = false);
+                       bool diagonal = false,
+                       const std::string &radial_grid = "");
 
 //------------------------------------------------------------------------------
 //! As write_to_file_xyz, for a FormFactorSet (empty factors are skipped)
@@ -1028,6 +1057,7 @@ void write_to_file_xyz_13(
   const std::string &filename, const std::vector<double> &E_grid,
   const std::vector<double> &q_grid, const std::vector<std::string> &titles,
   const std::vector<std::string> &descriptions, const FormFactorSet &K_factors,
-  Units units = Units::Particle, int num_digits = 6, bool diagonal = false);
+  Units units = Units::Particle, int num_digits = 6, bool diagonal = false,
+  const std::string &radial_grid = "");
 
 } // namespace Kion
