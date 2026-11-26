@@ -860,13 +860,13 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "Output filename will be in form, e.g., "
       "Xe0_method_kmin-kmax_VASP.txt\n\n"},
      {"E_range", "List (2), comma separated. Minimum, maximum energy transfer "
-                 "(E), in eV [10.0, 1.0e4]"},
-     {"E_steps", "Numer of steps along dE grid (logarithmic) [1]"},
+                 "(E), in eV [10.0, 1.0e3]"},
+     {"E_steps", "Numer of steps along dE grid (logarithmic) [16]"},
+     {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
+                 "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e2, 1.0e4]"},
+     {"q_steps", "Numer of steps along q grid (logarithmic) [128]"},
      {"E_set", "List: set of specific E values to calculate for (in eV) - "
                "Will override E_range/E_set if set"},
-     {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
-                 "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e4, 1.0e7]"},
-     {"q_steps", "Numer of steps along q grid (logarithmic) [1]"},
      {"q_set", "List: set of specific q values to calculate for (in eV) - "
                "Will override q_range/q_set if set"},
      {"diagonal",
@@ -880,12 +880,36 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "   'A' (axial-vector), \n"
       "   'S' (scalar), \n"
       "   'P' (pseudoscalar).\n"
-      "If 'V' (e.g.), output will include: temporal V0, electric VE, magnetic "
+      "If 'V' (e.g.), output will include: temporal VT, electric VE, magnetic "
       "VM, longitudinal VL, and cross X terms."
       "Cross-terms X,Y,Z will be calculated automatically depending on input."},
      {"temporal_only", "If only non-relativistic scattering is required, save "
                        "time by not calculating the spatial terms. [false]"},
      {"K_minmax", "List (2). Minimum, maximum multipolarity K [0, 6]"},
+     {"ridge_correction",
+      "true/false. Bethe-ridge correction: completes the multipole sum above "
+      "K_max with free (plane-wave) states for the ejected electron. [true]"},
+     {"rpa",
+      "true/false. Include the RPA (core-polarisation) corrections [false]"},
+     {"rpa_E_max", "RPA: solve the RPA only for energy transfers E up to this "
+                   "(eV) [500]"},
+     {"rpa_q_max", "RPA: solve the RPA only for momentum transfers q up to "
+                   "this (eV). [2.0e4]"},
+     {"rpa_K_max", "Solve the RPA only for multipoles K up to this [1]"},
+     {"rpa_stride", "two values, E stride and q stride. The RPA is "
+                    "solved only at every n-th point of the E and q grids, "
+                    "and interpolated between. [default: 2, 4]"},
+     {"auto_grid",
+      "true/false. Automatically set radial grid for different energy bands "
+      "for better efficiency, particularly for RPA [true]"},
+     {"", "The below should generally not need to be changed from default"},
+     {"method",
+      "Method for bound and continuum states: HF (standard), RPA (HF states, "
+      "with RPA/core-polarisation corrections to every amplitude from the "
+      "outgoing-wave TDHF; requires the HF method; writes the bare HF file "
+      "as well as the RPA file), Zeff (H-like, solved numerically with "
+      "DiracODE), ZeffAnalytic (H-like, exact analytic functions; requires "
+      "FLINT). [HF; Zeff if Zeff option is set]"},
      {"lc_minmax", "List (2). Minimum and maximum orbital quantum number l to "
                    "include in continuum states. By "
                    "default, will include all allowed values (limitted by "
@@ -899,57 +923,27 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"low_q", "Explicitly use low-q form of operators. These are only valid "
                "at low q only, and are used for numerical tests. (nb: All are "
                "zero for K>2.) [false]"},
-     {"ridge_correction",
-      "true/false. Bethe-ridge correction: completes the multipole sum above "
-      "K_max with free (plane-wave) states for the ejected electron. [true]"},
      {"force_rescale", "Rescale atomic potential V(r) at large r when solving "
                        "continuum orbitals. Should be false for local "
                        "potentials or if hole-particle is included. [false]"},
      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                        "hole-particle interaction) [true]"},
      {"force_orthog", "Enforce orthogonality of the continuum orbitals [true]"},
-     {"rpa", "true/false. Include the RPA (core-polarisation) corrections to "
-             "the amplitudes, on top of the HF states: method=HF with "
-             "RPA=true is the same as method=RPA. Ignored for the Zeff "
-             "methods. [false; true if method=RPA]"},
-     {"method",
-      "Method for bound and continuum states: HF (standard), RPA (HF states, "
-      "with RPA/core-polarisation corrections to every amplitude from the "
-      "outgoing-wave TDHF; requires the HF method; writes the bare HF file "
-      "as well as the RPA file), Zeff (H-like, solved numerically with "
-      "DiracODE), ZeffAnalytic (H-like, exact analytic functions; requires "
-      "FLINT). [HF; Zeff if Zeff option is set]"},
+     {"Zeff", "true/false. Use H-like (Zeff) bound and continuum states, with "
+              "Zeff = n*sqrt(-2*en) from each binding energy; the same as "
+              "method = Zeff. [false]"},
      {"rpa_max_its", "RPA: maximum iterations per solve; 1 gives the "
                      "first-order correction [30]"},
      {"rpa_eps", "RPA: convergence target [1e-8]"},
      {"rpa_eps_fail", "RPA: a solve whose final eps is above this (or nan) is "
-                      "discarded, and the no-RPA value used there [1e-4]"},
-     {"rpa_E_max", "RPA: solve the RPA only for energy transfers E up to this "
-                   "(eV); above it, the RPA factors are the bare (HF) ones. "
-                   "[500]"},
-     {"rpa_q_max", "RPA: solve the RPA only for momentum transfers q up to "
-                   "this (eV); above it, the RPA factors are the bare ones. In "
-                   "the diagonal case, this limits E (q = E/c). [2.0e4]"},
-     {"rpa_K_max", "RPA: solve the RPA only for multipoles K up to this [1]"},
-     {"rpa_stride", "RPA: two values, E stride and q stride. The RPA is "
-                    "solved only at every n-th point of the E and q grids, "
-                    "and interpolated between. [default: 2, 4]"},
-     {"Zeff", "true/false. Use H-like (Zeff) bound and continuum states, with "
-              "Zeff = n*sqrt(-2*en) from each binding energy; the same as "
-              "method = Zeff. [false]"},
-     {"auto_grid",
-      "true/false. The energies are solved one decade at a time (E <= 100 "
-      "eV, E <= 1000 eV, ...), each on a radial grid with enough points for "
-      "its largest E and the largest q (same r0, rmax, b; never fewer points "
-      "than the input grid). Hartree-Fock is solved again on each such grid. "
-      "If false, the input grid is used as it is. [true]"}});
+                      "discarded, and the no-RPA value used there [1e-4]"}});
   if (input.has_option("help")) {
     return;
   }
 
   // Read in energy grid. Input is in eV:
   auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 1.0e3});
-  auto E_steps = input.get<std::size_t>("E_steps", 1);
+  auto E_steps = input.get<std::size_t>("E_steps", 16);
   if (E_steps <= 1 || Emax_eV <= Emin_eV) {
     E_steps = 1;
     Emax_eV = Emin_eV;
@@ -978,8 +972,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Momentum-transfer range (in eV)
   const auto diagonal_Eq = input.get("diagonal", false);
-  auto [qmin_eV, qmax_eV] = input.get("q_range", std::array{1.0, 1.0e4});
-  auto q_steps = diagonal_Eq ? 1 : input.get<std::size_t>("q_steps", 1);
+  auto [qmin_eV, qmax_eV] = input.get("q_range", std::array{1e2, 1.0e4});
+  auto q_steps = diagonal_Eq ? 1 : input.get<std::size_t>("q_steps", 128);
   if (q_steps <= 1 || qmax_eV <= qmin_eV) {
     q_steps = 1;
     qmax_eV = qmin_eV;
@@ -1191,8 +1185,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Check to see if the q grid is dense enough to resolve the Bethe ridge.
-  // Just prints warning to screen if not the case
-  if (ridge_correction) {
+  // Just prints warning to screen if not the case. Not for a given set of q
+  // (the check is for a grid over a range)
+  if (ridge_correction && q_set_eV.empty()) {
     Kion::check_ridge_q_grid(wf.core(), Egrid, qgrid, wf.alpha());
   }
 
