@@ -835,7 +835,7 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 //==============================================================================
-void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
+void formFactors(const IO::InputBlock &input, const Wavefunction &wf_input) {
   IO::ChronoTimer timer("formFactors");
 
   input.check(
@@ -935,7 +935,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                     "and interpolated between. [default: 2, 4]"},
      {"Zeff", "true/false. Use H-like (Zeff) bound and continuum states, with "
               "Zeff = n*sqrt(-2*en) from each binding energy; the same as "
-              "method = Zeff. [false]"}});
+              "method = Zeff. [false]"},
+     {"auto_grid", "true/false. If the radial grid is not dense enough for "
+                   "the largest E and q, Hartree-Fock is solved again on a "
+                   "grid with more points (same r0, rmax, b), which is then "
+                   "used here. If false, the grid is used as it is. [true]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -994,10 +998,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Set up the q grid
   const auto qgrid = qip::logarithmic_range(q_min, q_max, q_steps);
 
-  const auto alpha_ratio = wf.alpha() / PhysConst::alpha;
+  const auto alpha_ratio = wf_input.alpha() / PhysConst::alpha;
   if (std::abs(alpha_ratio - 1) > 0.001) {
     fmt::print("\nEffective speed of light: c_eff = {} c\n", 1.0 / alpha_ratio);
-    fmt::print("(dα^2 = {})", wf.dalpha2());
+    fmt::print("(dα^2 = {})", wf_input.dalpha2());
   }
 
   std::cout << "\nEnergy/Momentum exchange grids:\n";
@@ -1014,9 +1018,50 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
-  // Check to see if grid is reasonable for maximum energy/momentum.
-  // Just prints warning to screen if not the case
-  Kion::check_radial_grid(Emax_au, q_max, wf.grid(), wf.alpha());
+  // If the grid is not dense enough for the maximum energy/momentum,
+  // Hartree-Fock is solved again on a grid with enough points (same r0, rmax,
+  // b), which is used for everything below. It is solved from the nucleus and
+  // core configuration alone, so only if the potential has no other parts
+  // (Breit, QED, extra potential)
+  const auto auto_grid = input.get("auto_grid", true);
+  const auto vHF_input = wf_input.vHF();
+  const bool extra_potential =
+    wf_input.vnuc() !=
+    Nuclear::formPotential(wf_input.nucleus(), wf_input.grid().r());
+  const bool can_solve_again = vHF_input->vBreit() == nullptr &&
+                               vHF_input->Vrad() == nullptr && !extra_potential;
+  const bool solve_dense_grid = auto_grid && can_solve_again;
+
+  // Check to see if grid is reasonable for maximum energy/momentum; returns
+  // the num_points that would be enough. Prints warning to screen if not the
+  // case, unless the grid is to be replaced
+  const auto required_num_points = Kion::check_radial_grid(
+    Emax_au, q_max, wf_input.grid(), wf_input.alpha(), !solve_dense_grid);
+  const bool grid_too_coarse =
+    required_num_points > wf_input.grid().num_points();
+
+  if (auto_grid && !can_solve_again && grid_too_coarse) {
+    fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
+    fmt::print("auto_grid not available with Breit, QED, or an extra "
+               "potential. Using the grid as it is\n");
+  }
+
+  std::optional<Wavefunction> wf_dense;
+  if (solve_dense_grid && grid_too_coarse) {
+    // Rounded up to a multiple of 1000
+    const auto dense_num_points = 1000 * ((required_num_points + 999) / 1000);
+    auto grid_params = wf_input.grid().params();
+    grid_params.num_points = dense_num_points;
+    fmt::print("\nUsing auto_grid:\n"
+               "Re-solving Hartree-Fock on a grid with num_points "
+               "= {} (was {})\n",
+               dense_num_points, wf_input.grid().num_points());
+    wf_dense.emplace(grid_params, wf_input.nucleus(), alpha_ratio,
+                     wf_input.run_label());
+    wf_dense->solve_core(vHF_input->method(), wf_input.coreConfiguration());
+    std::cout << wf_dense->grid().gridParameters() << "\n";
+  }
+  const Wavefunction &wf = wf_dense ? *wf_dense : wf_input;
 
   //----------------------------------------------------------------------------
 

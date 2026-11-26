@@ -107,7 +107,8 @@ inline double Zeff_nonrel(double en, int n) {
 
   @details
   Two independent checks, both of which print advice (larger num_points, or a
-  different loglinear b) when they fail:
+  different loglinear b) when they fail (nothing printed if @p print is
+  false):
   - q: the grid spacing near \f$ r\sim a_0 \f$ must resolve the oscillations
     of \f$ e^{i\vb{q}\cdot\vb{r}} \f$ at @p qmax. Only a rough guide: high q
     may contribute negligibly, in which case error there does not matter.
@@ -118,19 +119,28 @@ inline double Zeff_nonrel(double en, int n) {
   @param qmax   Maximum momentum transfer, in au.
   @param rgrid  Radial grid to be checked (loglinear expected).
   @param alpha  Fine-structure constant (as used by the Hartree-Fock).
-  @return False if either check fails; calculations may then be inaccurate.
+  @param print  Print the result of each check, and the advice.
+  @return The num_points (same r0, rmax, b) with which both checks pass: that
+          of @p rgrid if they pass already; more if either fails, in which
+          case calculations on @p rgrid may be inaccurate.
 */
-bool check_radial_grid(double Emax, double qmax, const Grid &rgrid,
-                       double alpha = PhysConst::alpha);
+std::size_t check_radial_grid(double Emax, double qmax, const Grid &rgrid,
+                              double alpha = PhysConst::alpha,
+                              bool print = true);
 
 //! The q part of check_radial_grid only: grid spacing near r ~ a0 must
-//! resolve exp(iq.r) at qmax (au). Returns false (with advice) if not.
-bool check_radial_grid_q(double qmax, const Grid &rgrid);
+//! resolve exp(iq.r) at qmax (au). Returns the num_points required (same r0,
+//! rmax, b): that of the grid if it passes; more (with advice) if not.
+std::size_t check_radial_grid_q(double qmax, const Grid &rgrid,
+                                bool print = true);
 
 //! The E part of check_radial_grid only: grid must resolve the continuum
-//! oscillations out to rmax at Emax (au). Returns false (with advice) if not.
-bool check_radial_grid_E(double Emax, const Grid &rgrid,
-                         double alpha = PhysConst::alpha);
+//! oscillations out to rmax at Emax (au). Returns the num_points required
+//! (same r0, rmax, b): that of the grid if it passes; more (with advice) if
+//! not.
+std::size_t check_radial_grid_E(double Emax, const Grid &rgrid,
+                                double alpha = PhysConst::alpha,
+                                bool print = true);
 
 //------------------------------------------------------------------------------
 //! The 13 form factors of one bound orbital (or their sum), in the fixed

@@ -1378,18 +1378,20 @@ LinAlg::Matrix<double> interpolate_log_bilinear(
 }
 
 //==============================================================================
-bool check_radial_grid_q(double qmax_au, const Grid &rgrid) {
-  bool ok = true;
+std::size_t check_radial_grid_q(double qmax_au, const Grid &rgrid, bool print) {
+  auto required_num_points = rgrid.num_points();
 
   // *Very* rough estimate of good aximum q range.
   const auto r_q = 1.0;
-  std::cout << "\n"
-            << "Check grid for q_max:\n";
   const auto i = rgrid.getIndex(r_q);
   const auto dr_q = rgrid.drdu(i) * rgrid.du();
   const auto qmax_targ = 2.0 * M_PI / (3.0 * dr_q);
-  fmt::print("Very rough guess for maximum safe q: {:.0f} au = {:.2f} MeV\n",
-             qmax_targ, qmax_targ * UnitConv::Momentum_au_to_MeV);
+  if (print) {
+    std::cout << "\n"
+              << "Check grid for q_max:\n";
+    fmt::print("Very rough guess for maximum safe q: {:.0f} au = {:.2f} MeV\n",
+               qmax_targ, qmax_targ * UnitConv::Momentum_au_to_MeV);
+  }
   if (qmax_au > qmax_targ) {
     // dr required at r_q for qmax (same formula, inverted):
     const auto dr_targ = 2.0 * M_PI / (8.0 * qmax_au);
@@ -1397,33 +1399,36 @@ bool check_radial_grid_q(double qmax_au, const Grid &rgrid) {
     const auto n_q = Grid::calc_num_points_from_du(
       rgrid.r0(), rgrid.rmax(), dr_targ / rgrid.drdu(i), rgrid.type(),
       rgrid.loglin_b());
-    // smallest sufficient b (same num_points): dr(r_q) shrinks as b grows
-    // (larger b = denser at low r) - opposite direction to the E case.
-    // Negative means no b is sufficient (need more points):
-    const double L = std::log(rgrid.rmax() / rgrid.r0());
-    const double tn = dr_targ * double(rgrid.num_points() - 1);
-    const double b_q =
-      r_q * (tn - (rgrid.rmax() - rgrid.r0())) / (L * r_q - tn);
-    fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
-    fmt::print("Grid may not be dense enough for q = {:.0f} au = {:.2f} MeV\n",
-               qmax_au, qmax_au * UnitConv::Momentum_au_to_MeV);
-    if (b_q > 0.0) {
-      fmt::print("Try:\n - increasing num_points to {}; or\n - increasing b "
-                 "to {:.1f} (denser at low r)\n",
-                 n_q, b_q);
-    } else {
-      fmt::print("Try increasing num_points to {}\n", n_q);
+    required_num_points = n_q;
+    if (print) {
+      // smallest sufficient b (same num_points): dr(r_q) shrinks as b grows
+      // (larger b = denser at low r) - opposite direction to the E case.
+      // Negative means no b is sufficient (need more points):
+      const double L = std::log(rgrid.rmax() / rgrid.r0());
+      const double tn = dr_targ * double(rgrid.num_points() - 1);
+      const double b_q =
+        r_q * (tn - (rgrid.rmax() - rgrid.r0())) / (L * r_q - tn);
+      fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
+      fmt::print(
+        "Grid may not be dense enough for q = {:.0f} au = {:.2f} MeV\n",
+        qmax_au, qmax_au * UnitConv::Momentum_au_to_MeV);
+      if (b_q > 0.0) {
+        fmt::print("Try:\n - increasing num_points to {}; or\n - increasing b "
+                   "to {:.1f} (denser at low r)\n",
+                   n_q, b_q);
+      } else {
+        fmt::print("Try increasing num_points to {}\n", n_q);
+      }
+      std::cout << "(nb: Rough: high q might not contribute, in which case "
+                   "numerical error there might not matter. Always check)\n";
     }
-    ok = false;
-    std::cout << "(nb: Rough: high q might not contribute, in which case "
-                 "numerical error there might not matter. Always check)\n";
   }
-  return ok;
+  return required_num_points;
 }
 
 //==============================================================================
-bool check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha) {
-  bool ok = true;
+std::size_t check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha,
+                                bool print) {
 
   // Check grid type: only loglinear is reasonable for continuum states
   if (rgrid.type() != GridType::loglinear) {
@@ -1438,11 +1443,13 @@ bool check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha) {
   // point, as required to store the state pointwise to rmax):
   const auto req = DiracODE::RequiredContinuumGrid(Emax_au, rgrid, 10.0, alpha);
 
-  fmt::print("\nGrid check for continuum states: E_max = {:.3g} au:\n"
-             "Require num_points ~ {} (same r0, rmax, b); have {}\n",
-             Emax_au, req.num_points, rgrid.num_points());
+  if (print) {
+    fmt::print("\nGrid check for continuum states: E_max = {:.3g} au:\n"
+               "Require num_points ~ {} (same r0, rmax, b); have {}\n",
+               Emax_au, req.num_points, rgrid.num_points());
+  }
 
-  if (rgrid.num_points() < req.num_points) {
+  if (print && rgrid.num_points() < req.num_points) {
     fmt2::styled_print(fg(fmt::color::red), "Warning: ");
     fmt::print("Grid may not be dense enough for continuum states with "
                "E = {:.2f} au\n",
@@ -1452,18 +1459,17 @@ bool check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha) {
       "increase num_points to {}\n",
       req.num_points, req.b, req.num_points_b);
     std::cout << "Program will continue; results may be inaccurate\n";
-    ok = false;
   }
 
-  return ok;
+  return std::max(rgrid.num_points(), req.num_points);
 }
 
 //==============================================================================
-bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid,
-                       double alpha) {
-  const bool q_ok = check_radial_grid_q(qmax_au, rgrid);
-  const bool E_ok = check_radial_grid_E(Emax_au, rgrid, alpha);
-  return q_ok && E_ok;
+std::size_t check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid,
+                              double alpha, bool print) {
+  const auto num_points_q = check_radial_grid_q(qmax_au, rgrid, print);
+  const auto num_points_E = check_radial_grid_E(Emax_au, rgrid, alpha, print);
+  return std::max(num_points_q, num_points_E);
 }
 
 //==============================================================================
