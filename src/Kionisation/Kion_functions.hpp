@@ -164,6 +164,12 @@ struct RPAOptions {
   //! The RPA is solved only for multipoles of rank K up to this; the higher
   //! multipoles contribute their bare factors
   int K_max{999};
+  //! The RPA is solved only at every E_stride-th point of the energy grid
+  //! (within the limits); it is interpolated to the points between (see
+  //! calculate_formFactors_RPA). 1: every point
+  std::size_t E_stride{1};
+  //! As E_stride, for the momentum transfer grid
+  std::size_t q_stride{1};
 };
 
 //------------------------------------------------------------------------------
@@ -176,13 +182,14 @@ struct FormFactorsRPA {
   std::vector<FormFactorSet> rpa{};
   //! Worst RPA eps over K and operators at each (E, q); zero where no
   //! orbital is ionised, or where the RPA was not solved (outside the
-  //! RPAOptions limits)
+  //! RPAOptions limits, or a point skipped by the E or q stride)
   LinAlg::Matrix<double> eps{};
   //! Number of RPA solves made (one per (E, K, operator, q) with a non-zero
   //! amplitude, within the limits)
   std::size_t n_solves{0};
   //! How many of those did not converge (eps above RPAOptions::eps_fail, or
-  //! nan); zero for a first-order solve, whose eps is not tested
+  //! nan) or were too large (check_rpa_spikes()); zero for a
+  //! first-order solve, whose eps is not tested
   std::size_t n_failed{0};
   //! How many of the failed solves had a converged neighbour (same K and
   //! operator, adjacent E or q) to interpolate the RPA shift from
@@ -488,6 +495,29 @@ std::vector<std::size_t> active_operators(
 
 //------------------------------------------------------------------------------
 /*!
+  @brief True if an RPA solve changed the amplitudes of some orbital by more
+  than a factor of 10: such a solve is spurious.
+
+  @details
+  The size of the amplitudes of a hole orbital is the root of the sum of
+  \f$ |\redmatel{e}{h}{a}|^2 \f$ over its channels (what enters its form
+  factor), so that a channel whose bare amplitude happens to vanish does not
+  matter. Tested for each hole orbital, with RPA against without. A nan RPA
+  amplitude also counts as too large.
+
+  @param i_op      Operator index in the multipole_operators() set.
+  @param channels  The (hole, ejected) channels (construct_channels()).
+  @param A_bare    Bare amplitudes, one per channel.
+  @param A_rpa     RPA amplitudes, one per channel.
+  @return True if the RPA amplitudes of any hole orbital are too large.
+*/
+bool check_rpa_spikes(std::size_t i_op,
+                      const std::vector<IonisationChannel> &channels,
+                      const std::vector<ChannelAmplitudes> &A_bare,
+                      const std::vector<ChannelAmplitudes> &A_rpa);
+
+//------------------------------------------------------------------------------
+/*!
   @brief One RPA solve: the bare and RPA amplitudes of every channel, for one
   operator at one (E, K, q).
 
@@ -504,7 +534,9 @@ std::vector<std::size_t> active_operators(
   RPA amplitude is the bare one, and the solver is cleared so that the next
   solve does not warm start from the failed state. Convergence is not tested
   for a first-order solve (RPAOptions::max_its of 1): its eps is the size of
-  the correction, not a convergence measure. An operator with no non-zero
+  the correction, not a convergence measure. A solve whose amplitudes are
+  too large (check_rpa_spikes()) is discarded in the same way, and
+  nan is returned for its eps. An operator with no non-zero
   bare amplitude in any channel (a transverse multipole at K = 0) is not
   solved: the RPA amplitudes are the bare ones, and nothing is returned.
 
@@ -517,8 +549,9 @@ std::vector<std::size_t> active_operators(
   @param A_bare       Bare amplitudes, one per channel; entry @p i_op set.
   @param A_rpa        RPA amplitudes, one per channel; entry @p i_op set.
   @param print        Print the RPA iterations of the solve.
-  @return The eps of the solve (see ExternalField::TDHF::last_eps); nullopt
-          if the RPA was not solved.
+  @return The eps of the solve (see ExternalField::TDHF::last_eps): nan if
+          the solve was discarded as too large; nullopt if the RPA was not
+          solved.
 */
 std::optional<double> solve_channel_amplitudes(
   const DiracOperator::TensorOperator &h, std::size_t i_op,
@@ -580,7 +613,8 @@ std::optional<double> solve_channel_amplitudes(
   @return The bare and RPA factors of each core orbital from the multipoles
           Kmin to Kmax, and the worst RPA eps at each (E, q).
 
-  @note An unconverged solve (eps above RPAOptions::eps_fail, or nan) is not
+  @note An unconverged solve (eps above RPAOptions::eps_fail, or nan), or one
+        whose amplitudes are too large (check_rpa_spikes()), is not
         used: the bare amplitude is taken for that (E, K, operator, q), and
         the solver is cleared so the next q does not warm start from it (see
         solve_channel_amplitudes()). The factors are accumulated per K for
@@ -625,9 +659,28 @@ FormFactorsRPA solve_formFactors_RPA(
   region, and the bare ones elsewhere. In the diagonal case (q = E/c) the q
   limit is a limit on E.
 
+  With a stride (RPAOptions::E_stride, q_stride) the RPA is solved only at
+  some points of the region: every stride-th energy and momentum transfer
+  (stride_points()), the last of each, and the first and last energy at which
+  each orbital is ionised (so that no factor is interpolated across its
+  threshold). Failed solves are corrected on those points, as without a
+  stride. The RPA correction is then interpolated to every point of the
+  region (interpolate_rpa()). For the direct factors it is the
+  relative shift \f$ R = K_{\rm RPA}/K_{\rm bare} \f$ of the RPA
+  multipoles that is interpolated, since it varies slowly where the factors
+  themselves change by orders of magnitude,
+  \f[
+    K_{\rm RPA}(E,q) = K_{\rm bare}(E,q) + [R(E,q) - 1]\,
+                       K^{K \le K_{\rm max}}_{\rm bare}(E,q);
+  \f]
+  for the cross terms (X, Y, Z), which may change sign, it is the shift
+  \f$ K_{\rm RPA} - K_{\rm bare} \f$ itself. The bare factors are
+  calculated in two parts, the RPA multipoles and the higher ones, so that
+  those of the RPA multipoles alone are known at every point.
+
   Prints "Calculating RPA form factors:" with a progress bar over the RPA
-  solves, then "Calculating form factors (non-RPA contributions):" with a
-  progress bar over the bare calculation.
+  solves, then "RPA-excluded contributions:" with a progress bar over each
+  part of the bare calculation.
 
   The limits exist because the RPA is expensive, and hard to converge, at
   high E, q, and K (many open channels; rapidly oscillating operators) where
@@ -676,6 +729,49 @@ FormFactorsRPA calculate_formFactors_RPA(
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
   bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options = {});
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Adds the RPA shift, solved at some points of a region of the grids,
+  to the form factors at every point of the region.
+
+  @details
+  The RPA factors of @p factors must hold the bare ones on entry. If every
+  point of the region was solved, the shift (rpa - bare of @p solved) is
+  added as it is. Otherwise the RPA correction is interpolated from the
+  solved points, bilinearly in ln E and ln q (interpolate_log_bilinear()):
+  for the direct factors the relative shift
+  \f$ R = K_{\rm RPA}/K_{\rm bare} \f$, which is then applied to the bare
+  factor of the same multipoles at each point (@p bare_rpa_K); for the cross
+  terms (X, Y, Z), which may change sign, the shift itself. See
+  calculate_formFactors_RPA().
+
+  Also sets the eps of the solved points (it is left as it is at the others),
+  and copies the counts of solves.
+
+  @param solved      Bare and RPA factors at the solved points only, as from
+                     solve_formFactors_RPA(): indexed (E_solved, q_solved).
+  @param bare_rpa_K  Bare factors of the same multipoles, over the full grids.
+  @param Egrid       Full energy transfer grid.
+  @param qgrid       Full momentum transfer grid.
+  @param E_region    The energies of the region: indices into @p Egrid, in
+                     ascending order of energy.
+  @param q_region    As @p E_region, for the momentum transfer.
+  @param E_solved    The solved energies: indices into @p E_region,
+                     ascending; first and last points of the region included.
+  @param q_solved    As @p E_solved, for the momentum transfer.
+  @param factors     Factors over the full grids; rpa, eps and the counts are
+                     updated.
+*/
+void interpolate_rpa(const FormFactorsRPA &solved,
+                     const std::vector<FormFactorSet> &bare_rpa_K,
+                     const std::vector<double> &Egrid,
+                     const std::vector<double> &qgrid,
+                     const std::vector<std::size_t> &E_region,
+                     const std::vector<std::size_t> &q_region,
+                     const std::vector<std::size_t> &E_solved,
+                     const std::vector<std::size_t> &q_solved,
+                     FormFactorsRPA *factors);
 
 //------------------------------------------------------------------------------
 //! A failed RPA solve: final eps above eps_fail, or nan
@@ -782,6 +878,51 @@ void interpolate_failed_rpa_2d(const LinAlg::Matrix<double> &eps,
   @return The operator indices.
 */
 std::vector<std::size_t> factor_operators(std::size_t i_factor);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief The points of a grid kept by a stride: every stride-th point, the
+  last point, and any points that must be kept.
+
+  @param num_points  Number of points of the grid.
+  @param stride      Every stride-th point is kept, from the first (1, or 0:
+                     every point).
+  @param keep        Points that are kept whatever the stride.
+  @return The kept points, in ascending order, without repeats.
+*/
+std::vector<std::size_t>
+stride_points(std::size_t num_points, std::size_t stride,
+              const std::vector<std::size_t> &keep = {});
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Interpolates a table known on some rows and columns of a grid to
+  every row and column: bilinear in the logarithms of the grid values.
+
+  @details
+  Between the known rows \f$ x_0 \le x \le x_1 \f$ and columns
+  \f$ y_0 \le y \le y_1 \f$:
+  \f[
+    f(x,y) = (1-u)(1-v) f_{00} + (1-u) v f_{01} + u (1-v) f_{10} + u v f_{11},
+  \f]
+  \f[
+    u = \frac{\ln(x/x_0)}{\ln(x_1/x_0)},
+  \f]
+  and v likewise in y. A known point is returned unchanged. Outside the range
+  of the known rows (columns) the value of the nearest one is used; with a
+  single known row (column) the table is constant in that direction.
+
+  @param x_known  Grid values of the known rows: positive, ascending.
+  @param y_known  Grid values of the known columns: positive, ascending.
+  @param f_known  The table on the known rows and columns.
+  @param x        Grid values of every row (positive).
+  @param y        Grid values of every column (positive).
+  @return The table on every row and column.
+*/
+LinAlg::Matrix<double> interpolate_log_bilinear(
+  const std::vector<double> &x_known, const std::vector<double> &y_known,
+  const LinAlg::Matrix<double> &f_known, const std::vector<double> &x,
+  const std::vector<double> &y);
 
 //------------------------------------------------------------------------------
 /*!

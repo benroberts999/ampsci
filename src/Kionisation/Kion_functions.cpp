@@ -19,8 +19,11 @@
 #include "qip/Vector.hpp"
 #include "qip/Widgets.hpp"
 #include "qip/omp.hpp"
+#include <algorithm>
+#include <cassert>
 #include <complex>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -543,6 +546,42 @@ std::vector<std::size_t> active_operators(
 }
 
 //==============================================================================
+bool check_rpa_spikes(std::size_t i_op,
+                      const std::vector<IonisationChannel> &channels,
+                      const std::vector<ChannelAmplitudes> &A_bare,
+                      const std::vector<ChannelAmplitudes> &A_rpa) {
+
+  // Largest factor by which the RPA may change the size of the amplitudes of
+  // an orbital (discard massive spurious spikes)
+  //...nb: may aslo discard true cases where bare amplitude very small..
+  constexpr double rpa_max_amplitude_ratio = 100.0;
+
+  assert(A_bare.size() == channels.size() && A_rpa.size() == channels.size());
+
+  // Sum of |amplitude|^2 over the channels of each hole orbital: what enters
+  // its form factor
+  std::size_t num_holes = 0;
+  for (const auto &channel : channels) {
+    num_holes = std::max(num_holes, channel.hole_index + 1);
+  }
+  std::vector<double> bare_sum(num_holes, 0.0);
+  std::vector<double> rpa_sum(num_holes, 0.0);
+  for (std::size_t ic = 0; ic < channels.size(); ++ic) {
+    bare_sum[channels[ic].hole_index] += std::norm(A_bare[ic][i_op]);
+    rpa_sum[channels[ic].hole_index] += std::norm(A_rpa[ic][i_op]);
+  }
+
+  // (written so that a nan amplitude counts as too large)
+  const auto max_ratio = rpa_max_amplitude_ratio * rpa_max_amplitude_ratio;
+  for (std::size_t i_hole = 0; i_hole < num_holes; ++i_hole) {
+    const bool within_limit = rpa_sum[i_hole] <= max_ratio * bare_sum[i_hole];
+    if (!within_limit)
+      return true;
+  }
+  return false;
+}
+
+//==============================================================================
 std::optional<double>
 solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
                          std::size_t i_op, ExternalField::TDHFcntm *rpa,
@@ -596,6 +635,16 @@ solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
     if (h.isZero(Fe, Fa))
       continue;
     (*A_rpa)[ic][i_op] += rpa->dV_complex(Fe, Fa);
+  }
+
+  // A solve that changes the amplitudes of some orbital by too much is
+  // spurious, however well it converged: it is discarded, as a failed solve
+  if (check_rpa_spikes(i_op, channels, *A_bare, *A_rpa)) {
+    for (std::size_t ic = 0; ic < channels.size(); ++ic) {
+      (*A_rpa)[ic][i_op] = (*A_bare)[ic][i_op];
+    }
+    rpa->clear();
+    return std::numeric_limits<double>::quiet_NaN();
   }
   return eps;
 }
@@ -939,6 +988,39 @@ FormFactorsRPA calculate_formFactors_RPA(
   }
   const auto Kmax_rpa = std::min(Kmax, rpa_options.K_max);
 
+  // In ascending order of the grid values, for the strides
+  std::sort(E_region.begin(), E_region.end(),
+            [&](std::size_t i, std::size_t j) { return Egrid[i] < Egrid[j]; });
+  std::sort(q_region.begin(), q_region.end(),
+            [&](std::size_t i, std::size_t j) { return qgrid[i] < qgrid[j]; });
+
+  // The points of the region at which the RPA is solved (as indices into the
+  // region): all of them, unless there is a stride. The first and last
+  // energy at which each orbital is ionised are always solved, so that no
+  // factor is interpolated across its threshold
+  std::vector<std::size_t> E_thresholds;
+  for (const auto &Fa : vHF->core()) {
+    std::optional<std::size_t> first, last;
+    for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
+      const auto ec = Egrid[E_region[jE]] + Fa.en();
+      if (ec > ec_min && ec <= ec_max) {
+        if (!first) {
+          first = jE;
+        }
+        last = jE;
+      }
+    }
+    if (first) {
+      E_thresholds.push_back(*first);
+      E_thresholds.push_back(*last);
+    }
+  }
+  const auto E_solved =
+    stride_points(E_region.size(), rpa_options.E_stride, E_thresholds);
+  const auto q_solved = stride_points(q_region.size(), rpa_options.q_stride);
+  const bool interpolation_needed =
+    E_solved.size() < E_region.size() || q_solved.size() < q_region.size();
+
   FormFactorsRPA factors;
   factors.eps.resize(E_steps, q_steps, 0.0);
 
@@ -947,59 +1029,149 @@ FormFactorsRPA calculate_formFactors_RPA(
   FormFactorsRPA block;
   const bool solve_rpa =
     Kmax_rpa >= Kmin && !E_region.empty() && !q_region.empty();
+  std::vector<double> Egrid_region, qgrid_region;
+  for (const auto iE : E_region) {
+    Egrid_region.push_back(Egrid[iE]);
+  }
+  for (const auto iq : q_region) {
+    qgrid_region.push_back(qgrid[iq]);
+  }
+  std::vector<double> Egrid_solved, qgrid_solved;
+  for (const auto jE : E_solved) {
+    Egrid_solved.push_back(Egrid_region[jE]);
+  }
+  for (const auto jq : q_solved) {
+    qgrid_solved.push_back(qgrid_region[jq]);
+  }
   if (solve_rpa) {
-    std::vector<double> Egrid_region, qgrid_region;
-    for (const auto iE : E_region) {
-      Egrid_region.push_back(Egrid[iE]);
-    }
-    for (const auto iq : q_region) {
-      qgrid_region.push_back(qgrid[iq]);
-    }
     fmt::print("Calculating RPA form factors:\n");
     block = solve_formFactors_RPA(vHF, lc_minmax, ec_min, ec_max, force_rescale,
-                                  hole_particle, force_orthog, Egrid_region,
-                                  qgrid_region, diagonal_Eq, low_q, jK_tab,
+                                  hole_particle, force_orthog, Egrid_solved,
+                                  qgrid_solved, diagonal_Eq, low_q, jK_tab,
                                   Kmin, Kmax_rpa, vectorQ, axialQ, scalarQ,
                                   pseudoscalarQ, spatialQ, rpa_options);
   }
 
   // The bare factors: every multipole over the full grids (what a run
-  // without RPA gives). The RPA factors are these plus the shift of the block
+  // without RPA gives). In two parts: the multipoles the RPA is solved for
+  // (which the RPA correction is relative to), and the higher ones
+  const auto bare_formFactors = [&](int K_first, int K_last) {
+    return calculate_formFactors(
+      vHF, vHF->core(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, K_first, K_last,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF,
+      false);
+  };
   fmt::print("RPA-excluded contributions:\n");
-  factors.bare = calculate_formFactors(
-    vHF, vHF->core(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
-    force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ,
-    axialQ, scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF, false);
-  factors.rpa = factors.bare;
   if (!solve_rpa) {
+    factors.bare = bare_formFactors(Kmin, Kmax);
+    factors.rpa = factors.bare;
     return factors;
   }
+  const auto bare_rpa_K = bare_formFactors(Kmin, Kmax_rpa);
+  factors.bare = bare_rpa_K;
+  if (Kmax_rpa < Kmax) {
+    add_formFactors(&factors.bare, bare_formFactors(Kmax_rpa + 1, Kmax));
+  }
+  factors.rpa = factors.bare;
 
-  for (std::size_t ia = 0; ia < factors.rpa.size(); ++ia) {
-    for (std::size_t i = 0; i < factors.rpa[ia].size(); ++i) {
-      auto &K_rpa = factors.rpa[ia][i];
+  // The RPA factors are the bare ones plus the RPA shift of the block
+  if (interpolation_needed) {
+    fmt::print("Interpolating RPA onto the full E/q grid\n");
+  }
+  interpolate_rpa(block, bare_rpa_K, Egrid, qgrid, E_region, q_region, E_solved,
+                  q_solved, &factors);
+  return factors;
+}
+
+//==============================================================================
+void interpolate_rpa(const FormFactorsRPA &solved,
+                     const std::vector<FormFactorSet> &bare_rpa_K,
+                     const std::vector<double> &Egrid,
+                     const std::vector<double> &qgrid,
+                     const std::vector<std::size_t> &E_region,
+                     const std::vector<std::size_t> &q_region,
+                     const std::vector<std::size_t> &E_solved,
+                     const std::vector<std::size_t> &q_solved,
+                     FormFactorsRPA *factors) {
+  assert(factors != nullptr);
+  assert(solved.rpa.size() == factors->rpa.size());
+  assert(bare_rpa_K.size() == factors->rpa.size());
+
+  const bool all_solved =
+    E_solved.size() == E_region.size() && q_solved.size() == q_region.size();
+
+  std::vector<double> Egrid_region, qgrid_region;
+  for (const auto iE : E_region) {
+    Egrid_region.push_back(Egrid[iE]);
+  }
+  for (const auto iq : q_region) {
+    qgrid_region.push_back(qgrid[iq]);
+  }
+  std::vector<double> Egrid_solved, qgrid_solved;
+  for (const auto jE : E_solved) {
+    Egrid_solved.push_back(Egrid_region[jE]);
+  }
+  for (const auto jq : q_solved) {
+    qgrid_solved.push_back(qgrid_region[jq]);
+  }
+
+  for (std::size_t ia = 0; ia < factors->rpa.size(); ++ia) {
+    for (std::size_t i = 0; i < factors->rpa[ia].size(); ++i) {
+      auto &K_rpa = factors->rpa[ia][i];
       if (K_rpa.empty())
         continue;
-      const auto &K_block_rpa = block.rpa[ia][i];
-      const auto &K_block_bare = block.bare[ia][i];
+      const auto &K_block_rpa = solved.rpa[ia][i];
+      const auto &K_block_bare = solved.bare[ia][i];
+
+      if (all_solved) {
+        for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
+          for (std::size_t jq = 0; jq < q_region.size(); ++jq) {
+            K_rpa(E_region[jE], q_region[jq]) +=
+              K_block_rpa(jE, jq) - K_block_bare(jE, jq);
+          }
+        }
+        continue;
+      }
+
+      // The RPA correction at the solved points: the relative shift,
+      // K_rpa/K_bare, for the direct factors (1 where the bare factor is
+      // zero); the shift, K_rpa - K_bare, for the cross terms, which may
+      // change sign
+      const bool cross_term = factor_operators(i).size() > 1;
+      LinAlg::Matrix<double> correction_solved(E_solved.size(),
+                                               q_solved.size());
+      for (std::size_t kE = 0; kE < E_solved.size(); ++kE) {
+        for (std::size_t kq = 0; kq < q_solved.size(); ++kq) {
+          const auto rpa = K_block_rpa(kE, kq);
+          const auto bare = K_block_bare(kE, kq);
+          correction_solved(kE, kq) =
+            cross_term ? rpa - bare : (bare != 0.0 ? rpa / bare : 1.0);
+        }
+      }
+      const auto correction =
+        interpolate_log_bilinear(Egrid_solved, qgrid_solved, correction_solved,
+                                 Egrid_region, qgrid_region);
+      const auto &K_bare_rpa_K = bare_rpa_K[ia][i];
       for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
         for (std::size_t jq = 0; jq < q_region.size(); ++jq) {
+          const auto bare = K_bare_rpa_K(E_region[jE], q_region[jq]);
           K_rpa(E_region[jE], q_region[jq]) +=
-            K_block_rpa(jE, jq) - K_block_bare(jE, jq);
+            cross_term ? correction(jE, jq) : (correction(jE, jq) - 1.0) * bare;
         }
       }
     }
   }
-  for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
-    for (std::size_t jq = 0; jq < q_region.size(); ++jq) {
-      factors.eps(E_region[jE], q_region[jq]) = block.eps(jE, jq);
+  // The eps of the solved points (zero at those skipped by a stride)
+  for (std::size_t kE = 0; kE < E_solved.size(); ++kE) {
+    for (std::size_t kq = 0; kq < q_solved.size(); ++kq) {
+      factors->eps(E_region[E_solved[kE]], q_region[q_solved[kq]]) =
+        solved.eps(kE, kq);
     }
   }
-  factors.n_solves = block.n_solves;
-  factors.n_failed = block.n_failed;
-  factors.n_interpolated = block.n_interpolated;
-
-  return factors;
+  factors->n_solves = solved.n_solves;
+  factors->n_failed = solved.n_failed;
+  factors->n_interpolated = solved.n_interpolated;
 }
 
 //==============================================================================
@@ -1143,6 +1315,66 @@ std::vector<std::size_t> factor_operators(std::size_t i_factor) {
     assert(false && "factor index out of range");
     return {};
   }
+}
+
+//==============================================================================
+
+std::vector<std::size_t> stride_points(std::size_t num_points,
+                                       std::size_t stride,
+                                       const std::vector<std::size_t> &keep) {
+  std::vector<std::size_t> points;
+  if (num_points == 0)
+    return points;
+  const auto step = std::max<std::size_t>(stride, 1);
+  for (std::size_t i = 0; i < num_points; i += step) {
+    points.push_back(i);
+  }
+  points.push_back(num_points - 1);
+  for (const auto i : keep) {
+    assert(i < num_points);
+    points.push_back(i);
+  }
+  std::sort(points.begin(), points.end());
+  points.erase(std::unique(points.begin(), points.end()), points.end());
+  return points;
+}
+
+//==============================================================================
+
+LinAlg::Matrix<double> interpolate_log_bilinear(
+  const std::vector<double> &x_known, const std::vector<double> &y_known,
+  const LinAlg::Matrix<double> &f_known, const std::vector<double> &x,
+  const std::vector<double> &y) {
+  assert(!x_known.empty() && !y_known.empty());
+  assert(f_known.rows() == x_known.size() && f_known.cols() == y_known.size());
+
+  // The known value below (or at) a grid value, and the weight of the one
+  // above it; the nearest known value, with weight zero, outside the range
+  const auto bracket = [](const std::vector<double> &known, double value) {
+    const auto upper = std::lower_bound(known.begin(), known.end(), value);
+    if (upper == known.begin())
+      return std::pair{std::size_t{0}, 0.0};
+    if (upper == known.end())
+      return std::pair{known.size() - 1, 0.0};
+    const auto i_lower = std::size_t(upper - known.begin()) - 1;
+    const auto weight =
+      std::log(value / known[i_lower]) / std::log(*upper / known[i_lower]);
+    return std::pair{i_lower, weight};
+  };
+
+  LinAlg::Matrix<double> f(x.size(), y.size());
+  for (std::size_t i = 0; i < x.size(); ++i) {
+    const auto [i0, u] = bracket(x_known, x[i]);
+    const auto i1 = std::min(i0 + 1, x_known.size() - 1);
+    for (std::size_t j = 0; j < y.size(); ++j) {
+      const auto [j0, v] = bracket(y_known, y[j]);
+      const auto j1 = std::min(j0 + 1, y_known.size() - 1);
+      f(i, j) =
+        (1.0 - u) * ((1.0 - v) * f_known(i0, j0) + v * f_known(i0, j1)) +
+        u * ((1.0 - v) * f_known(i1, j0) + v * f_known(i1, j1));
+    }
+  }
+  return f;
 }
 
 //==============================================================================

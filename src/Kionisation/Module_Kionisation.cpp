@@ -889,14 +889,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                    "K_max). This should usually be left blank"},
      {"ec_minmax",
       "List of floats (2). Minimum and maximum continuum state energy to "
-      "include (eV). "
-      "Minimum energy can be used, e.g., to model recombination of "
-      "low-E ionised electron. Maximum energy may be used to simplify "
-      "calculations, in cases where lower shells dominate (and high-energy "
-      "electron ionised from high shell doesn't contribute to cross section). "
-      "Both must be used with care, and should not normally be different from "
-      "default. By default: minimum=0.0, maximum=infinity. For infinity, input "
-      "very large number. [0.0, 1e99]"},
+      "include (eV). [0.0, 1e99]"},
      {"each_state",
       "true/false. If true, will output a separate K file for each "
       "(accessible) bound state. Output file will have same name as total, but "
@@ -907,12 +900,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                "zero for K>2.) [false]"},
      {"ridge_correction",
       "true/false. Bethe-ridge correction: completes the multipole sum above "
-      "K_max with free (plane-wave) states for the ejected electron. A sum "
-      "truncated at K_max misses the response near the quasi-free ridge "
-      "E ~ q^2/2m, where multipoles up to K ~ q*r contribute; off the ridge "
-      "the correction vanishes. Adds '_ridge' to the output file name. "
-      "Skipped (with a warning) if K_max < 2*j_max of the core, or with "
-      "diagonal, lc_minmax, or low_q. [false]"},
+      "K_max with free (plane-wave) states for the ejected electron. [true]"},
      {"force_rescale", "Rescale atomic potential V(r) at large r when solving "
                        "continuum orbitals. Should be false for local "
                        "potentials or if hole-particle is included. [false]"},
@@ -931,18 +919,20 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "DiracODE), ZeffAnalytic (H-like, exact analytic functions; requires "
       "FLINT). [HF; Zeff if Zeff option is set]"},
      {"rpa_max_its", "RPA: maximum iterations per solve; 1 gives the "
-                     "first-order correction [60]"},
+                     "first-order correction [30]"},
      {"rpa_eps", "RPA: convergence target [1e-8]"},
      {"rpa_eps_fail", "RPA: a solve whose final eps is above this (or nan) is "
-                      "discarded, and the no-RPA value used there [1e-3]"},
+                      "discarded, and the no-RPA value used there [1e-4]"},
      {"rpa_E_max", "RPA: solve the RPA only for energy transfers E up to this "
                    "(eV); above it, the RPA factors are the bare (HF) ones. "
-                   "[no limit]"},
+                   "[500]"},
      {"rpa_q_max", "RPA: solve the RPA only for momentum transfers q up to "
                    "this (eV); above it, the RPA factors are the bare ones. In "
-                   "the diagonal case, this limits E (q = E/c). [no limit]"},
-     {"rpa_K_max", "RPA: solve the RPA only for multipoles K up to this; the "
-                   "higher multipoles contribute their bare factors. [K_max]"},
+                   "the diagonal case, this limits E (q = E/c). [2.0e4]"},
+     {"rpa_K_max", "RPA: solve the RPA only for multipoles K up to this [1]"},
+     {"rpa_stride", "RPA: two values, E stride and q stride. The RPA is "
+                    "solved only at every n-th point of the E and q grids, "
+                    "and interpolated between. [default: 2, 4]"},
      {"Zeff", "true/false. Use H-like (Zeff) bound and continuum states, with "
               "Zeff = n*sqrt(-2*en) from each binding energy; the same as "
               "method = Zeff. [false]"}});
@@ -1141,7 +1131,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Bethe-ridge (plane-wave) completion of the multipole sum above Kmax.
   // Skipped at the q where the multipoles above Kmax carry less than
   // ridge_eps of the norm (see Kion::calculate_ridge_correction)
-  auto ridge_correction = input.get("ridge_correction", false);
+  auto ridge_correction = input.get("ridge_correction", true);
   const double ridge_eps = 1.0e-4;
   if (ridge_correction) {
     const auto twoj_max_core = DiracSpinor::max_tj(wf.core());
@@ -1207,22 +1197,25 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                HF::parseMethod_short(wf.vHF()->method()));
     return;
   }
+
   Kion::RPAOptions rpa_options;
-  rpa_options.max_its = input.get("rpa_max_its", 60);
+  rpa_options.max_its = input.get("rpa_max_its", 30);
   rpa_options.eps = input.get("rpa_eps", 1.0e-8);
-  rpa_options.eps_fail = input.get("rpa_eps_fail", 1.0e-3);
+  rpa_options.eps_fail = input.get("rpa_eps_fail", 1.0e-4);
   // Limits on where the RPA is solved (bare factors elsewhere); input in eV
-  const auto rpa_E_max_eV = input.get<double>("rpa_E_max");
-  const auto rpa_q_max_eV = input.get<double>("rpa_q_max");
-  const auto rpa_K_max = input.get<int>("rpa_K_max");
-  if (rpa_E_max_eV) {
-    rpa_options.E_max = *rpa_E_max_eV * UnitConv::Energy_eV_to_au;
+  const auto rpa_E_max_eV = input.get("rpa_E_max", 500.0);
+  const auto rpa_q_max_eV = input.get("rpa_q_max", 2.0e4);
+  rpa_options.E_max = rpa_E_max_eV * UnitConv::Energy_eV_to_au;
+  rpa_options.q_max = rpa_q_max_eV * UnitConv::Momentum_eV_to_au;
+  rpa_options.K_max = input.get("rpa_K_max", 1);
+
+  // E stride, q stride
+  const auto rpa_stride = input.get("rpa_stride", std::vector{2, 4});
+  if (rpa_stride.size() > 0 && rpa_stride[0] > 1) {
+    rpa_options.E_stride = std::size_t(rpa_stride[0]);
   }
-  if (rpa_q_max_eV) {
-    rpa_options.q_max = *rpa_q_max_eV * UnitConv::Momentum_eV_to_au;
-  }
-  if (rpa_K_max) {
-    rpa_options.K_max = *rpa_K_max;
+  if (rpa_stride.size() > 1 && rpa_stride[1] > 1) {
+    rpa_options.q_stride = std::size_t(rpa_stride[1]);
   }
 
   std::cout << "\n";
@@ -1239,18 +1232,17 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     fmt::print("Including RPA (core polarisation) via TDHF:\n"
                "  max_its = {}, eps = {:.1e}, discarded if eps > {:.1e}\n",
                rpa_options.max_its, rpa_options.eps, rpa_options.eps_fail);
-    if (rpa_E_max_eV || rpa_q_max_eV || rpa_K_max) {
-      std::cout << "  RPA included only for:";
-      if (rpa_E_max_eV) {
-        fmt::print(" E <= {:.4g} eV;", *rpa_E_max_eV);
-      }
-      if (rpa_q_max_eV) {
-        fmt::print(" q <= {:.4g} eV;", *rpa_q_max_eV);
-      }
-      if (rpa_K_max) {
-        fmt::print(" K <= {};", *rpa_K_max);
-      }
-      std::cout << "\n";
+
+    std::cout << "  RPA included for:";
+    fmt::print(" E <= {:.4g} eV;", rpa_E_max_eV);
+    fmt::print(" q <= {:.4g} eV;", rpa_q_max_eV);
+    fmt::print(" K <= {};", rpa_options.K_max);
+    std::cout << "\n";
+
+    if (rpa_options.E_stride > 1 || rpa_options.q_stride > 1) {
+      fmt::print("  RPA solved at every {} E, {} q points; interpolated "
+                 "between\n",
+                 rpa_options.E_stride, rpa_options.q_stride);
     }
     if (!hole_particle) {
       fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
@@ -1428,8 +1420,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     // Failed solves were corrected within their own (K, factor) block, from
     // the converged neighbours in E and q, before the sum over K
     if (factors.n_failed > 0) {
-      fmt::print("\nNote: RPA not converged (eps > {:.0e}) at {} of {} "
-                 "(E, q, operator, K) points:\n - dRPA interpolated in E/q for "
+      fmt::print("\nNote: RPA not converged (eps > {:.0e}) at "
+                 "{} of {} (E, q, operator, K) points:\n - dRPA interpolated "
+                 "in E/q for "
                  "{}; no-RPA used for {}\n\n",
                  rpa_options.eps_fail, factors.n_failed, factors.n_solves,
                  factors.n_interpolated,
