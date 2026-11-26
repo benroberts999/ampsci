@@ -759,6 +759,11 @@ FormFactorsRPA solve_formFactors_RPA(
   its effect on the factors is small: they confine the work to the low-E,
   low-q, low-K region where the core polarisation matters.
 
+  The RPA block may be solved on its own radial grid (@p vHF_rpa,
+  @p jK_tab_rpa): the RPA correction is formed from the rpa and bare factors
+  of the block itself, both on that grid, so the grid need only be dense
+  enough for the E and q within the RPA limits, not for the full grids.
+
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
   @param lc_minmax      Optional limits on the continuum orbital l.
   @param ec_min         Minimum ejected electron energy, in au.
@@ -781,6 +786,11 @@ FormFactorsRPA solve_formFactors_RPA(
   @param rpa_options    RPA iterations, convergence target, the eps above
                         which a solve is discarded, and the E, q, K limits
                         (see RPAOptions).
+  @param vHF_rpa        Hartree-Fock potential (same atom) on the radial grid
+                        the RPA block is solved on; nullptr: @p vHF.
+  @param jK_tab_rpa     Spherical Bessel table on the grid of @p vHF_rpa; must
+                        hold every q within the RPA limits. nullptr:
+                        @p jK_tab.
   @return The bare and RPA factors of each core orbital, and the worst RPA
           eps at each (E, q): zero outside the RPA region.
 
@@ -799,7 +809,9 @@ FormFactorsRPA calculate_formFactors_RPA(
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
-  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options = {});
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options = {},
+  const HF::HartreeFock *vHF_rpa = nullptr,
+  const SphericalBessel::JL_table *jK_tab_rpa = nullptr);
 
 //------------------------------------------------------------------------------
 /*!

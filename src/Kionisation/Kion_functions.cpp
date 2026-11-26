@@ -1010,10 +1010,19 @@ FormFactorsRPA calculate_formFactors_RPA(
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
-  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options) {
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options,
+  const HF::HartreeFock *vHF_rpa, const SphericalBessel::JL_table *jK_tab_rpa) {
   IO::ChronoTimer timer("Calculate RPA form factors");
 
   assert(vHF != nullptr);
+  // The RPA block has its own Hartree-Fock and Bessel table (same atom,
+  // other radial grid), or shares those of the bare factors
+  assert((vHF_rpa == nullptr) == (jK_tab_rpa == nullptr));
+  if (vHF_rpa == nullptr) {
+    vHF_rpa = vHF;
+    jK_tab_rpa = &jK_tab;
+  }
+  assert(vHF_rpa->core().size() == vHF->core().size());
   if (diagonal_Eq) {
     assert(qgrid.size() == 1);
   }
@@ -1096,9 +1105,9 @@ FormFactorsRPA calculate_formFactors_RPA(
   if (solve_rpa) {
     fmt::print("Calculating RPA form factors:\n");
     block = solve_formFactors_RPA(
-      vHF, lc_minmax, ec_min, force_rescale, hole_particle, force_orthog,
-      Egrid_solved, qgrid_solved, diagonal_Eq, low_q, jK_tab, Kmin, Kmax_rpa,
-      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+      vHF_rpa, lc_minmax, ec_min, force_rescale, hole_particle, force_orthog,
+      Egrid_solved, qgrid_solved, diagonal_Eq, low_q, *jK_tab_rpa, Kmin,
+      Kmax_rpa, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
   }
 
   // The bare factors: every multipole over the full grids (what a run

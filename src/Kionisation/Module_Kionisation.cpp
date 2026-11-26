@@ -1538,10 +1538,39 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
     Kion::FormFactorsRPA group_factors;
     if (use_rpa) {
+      // The RPA is solved on the input grid, if that is dense enough for the
+      // energies and momenta within the RPA limits (the q limit is usually
+      // far below the largest q). The RPA correction is taken relative to
+      // the bare factors on the same grid. Otherwise, on the grid of the
+      // group
+      const auto E_group_max =
+        *std::max_element(Egrid_group.begin(), Egrid_group.end());
+      const auto rpa_num_points = Kion::check_radial_grid(
+        std::min(E_group_max, rpa_options.E_max),
+        std::min(q_max, rpa_options.q_max), wf.grid(), wf.alpha(), false);
+      const bool rpa_on_input_grid =
+        wf_group != &wf && rpa_num_points <= wf.grid().num_points();
+
+      std::optional<SphericalBessel::JL_table> jK_tab_input;
+      if (rpa_on_input_grid) {
+        fmt::print("RPA radial grid: num_points = {}\n",
+                   wf.grid().num_points());
+        std::vector<double> q_table_rpa;
+        for (const auto q : q_table) {
+          if (q <= rpa_options.q_max) {
+            q_table_rpa.push_back(q);
+          }
+        }
+        jK_tab_input.emplace(std::min(Kmax, rpa_options.K_max) + 1, q_table_rpa,
+                             wf.grid().r());
+      }
+
       group_factors = Kion::calculate_formFactors_RPA(
         vHF_group, lc_minmax, ec_min, force_rescale, hole_particle,
         force_orthog, Egrid_group, qgrid, diagonal_Eq, low_q, jK_tab, Kmin,
-        Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+        Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options,
+        rpa_on_input_grid ? wf.vHF() : nullptr,
+        rpa_on_input_grid ? &*jK_tab_input : nullptr);
       std::cout << "\n";
       factors.n_solves += group_factors.n_solves;
       factors.n_failed += group_factors.n_failed;
