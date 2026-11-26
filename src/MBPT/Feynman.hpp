@@ -113,6 +113,7 @@ enum class GreenStates { both, core, excited };
 */
 class Feynman {
 
+protected:
   // Pointer to HF potential, and HF core
   const HF::HartreeFock *m_HF;
   // Pointer to shared radial grid (full grid)
@@ -633,7 +634,7 @@ public:
     return m_Pcore.at(Angular::kappa_to_kindex(kappa));
   }
 
-private:
+protected:
   // Number of spinor components: 2 (f, g) if include_G, else 1
   std::size_t num_spins() const { return m_include_G ? 2ul : 1ul; }
   // forms Qk matrices, as well as dri, drj

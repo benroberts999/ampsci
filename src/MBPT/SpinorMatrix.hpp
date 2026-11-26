@@ -174,6 +174,17 @@ public:
     return out;
   }
 
+  //! Trace over the spinor indices, ff + gg (just ff if g parts are not
+  //! included), as a RadialMatrix on the same sub-grid
+  RadialMatrix<T> tr() const {
+    RadialMatrix<T> t_tr(m_i0, m_stride, m_size, m_rgrid);
+    if (m_incl_g)
+      t_tr.Rmatrix() = m_ff + m_gg;
+    else
+      t_tr.Rmatrix() = m_ff;
+    return t_tr;
+  }
+
   //! Number of sub-grid points (dimension of each block)
   std::size_t size() const { return m_size; }
   //! Dimension of the g blocks: size(), or 0 if g parts are not included
@@ -521,6 +532,12 @@ public:
   double dr(std::size_t sub_index) const {
     const auto full_index = index_to_fullgrid(sub_index);
     return m_rgrid->drdu(full_index) * m_rgrid->du() * double(m_stride);
+  }
+
+  //! returns r at position along sub grid
+  double r(std::size_t sub_index) const {
+    const auto full_index = index_to_fullgrid(sub_index);
+    return m_rgrid->r(full_index);
   }
 
   /*!
