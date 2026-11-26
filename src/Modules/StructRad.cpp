@@ -1,5 +1,6 @@
 #include "Modules/StructRad.hpp"
-#include "DiracOperator/include.hpp" //For E1 operator
+#include "DiracOperator/GenerateOperator.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/FeynmanSR.hpp"
 #include "MBPT/SpinorMatrix.hpp"
@@ -8,7 +9,10 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
 #include <cmath>
+#include <iostream>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace Module {
 
@@ -19,12 +23,14 @@ const Register r_StructRad{"StructRad", "description", &StructRad};
 
 void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({
+    {"operator", "e.g., E1, hfs [E1]"},
+    {"options{}", "options specific to operator; blank by dflt"},
     {"stride", "stride [8]"},
     {"n_min_core", "Minimum core state [5]"},
     {"rmax", "Maximum r value [30]"},
     {"r0", "Minimum r value, [1e-3]"},
     {"includeG", "include lower g component [false]"},
-    {"includeSR2", "include nd diagrams [false]"},
+    {"exchange", "include the exchange diagrams [false]"},
     {"screening", "Coulomb screening [false]"},
   });
 
@@ -32,7 +38,14 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
-  const auto hE1 = DiracOperator::E1(wf.grid());
+
+  IO::ChronoTimer timer("StructRad");
+
+  const auto oper = input.get<std::string>("operator", "E1");
+  const auto h_options =
+    input.getBlock("options").value_or(IO::InputBlock(oper, {}));
+  const auto h = DiracOperator::generate(oper, h_options, wf);
+
   auto r0 = input.get("r0", 1e-3);
   auto rmax = input.get("rmax", 90.0);
   const auto i0 = wf.grid().getIndex(r0);
@@ -40,7 +53,7 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::size_t stride = input.get("stride", 8ul);
   const auto n_min_core = input.get("n_min_core", 5);
   const bool includeG = input.get("includeG", false);
-  const bool includeSR2 = input.get("includeSR2", false);
+  const bool exchange = input.get("exchange", false);
   // Sub-grid as for the Correlations Feynman (so Q*Pi*Q cache can be shared)
   const auto gsize = (imax - i0) / stride + 1;
   const auto screening = input.get("screening", false);
@@ -73,49 +86,85 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "Coulomb Screening: " << screening << ", Include G:" << includeG
             << "\n";
-  std::cout << "Include SR2: " << includeSR2 << "\n";
-  // 2) Loop through each pair of valence states, calc E1 matrix elements:
-  for (auto a = 0ul; a < wf.valence().size(); ++a) {
-    const auto &Fa = wf.valence()[a];
-    for (auto b = 0ul; b < wf.valence().size(); ++b) {
-      const auto &Fb = wf.valence()[b];
+  std::cout << "Exchange: " << exchange << "\n";
 
-      // Skip the MEs which are zero due to selection rules:
-      if (hE1.isZero(Fa.kappa(), Fb.kappa()))
+  std::cout << "\nStructure radiation, broken up by Feynman diagram: "
+            << h->name() << "\n";
+  std::cout << "Reduced matrix elements <w||h||v>, omega = e_w - e_v ("
+            << h->units() << ")\n";
+
+  // Values are printed as +d.[n_digits]e-xx
+  const int n_digits = 4;
+  const auto width = n_digits + 7;
+
+  // 1) Each diagram, from the functions that take any operator
+  std::vector<std::string> labels{"a", "b+c"};
+  if (exchange) {
+    labels.push_back("ax");
+  }
+  labels.push_back("total");
+  std::cout << "\nFunctions for any operator:\n";
+  fmt::print("{:5s} {:5s}", "w", "v");
+  for (const auto &label : labels) {
+    fmt::print(" {:>{}s}", label, width);
+  }
+  fmt::print("\n");
+  for (const auto &w : wf.valence()) {
+    for (const auto &v : wf.valence()) {
+      if (h->isZero(w.kappa(), v.kappa()))
         continue;
+      const auto omega = w.en() - v.en();
 
-      const auto Omega = Fa.en() - Fb.en();
-
-      const auto Sd1 =
-        Fyn.Sigma_SR_direct(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
-
-      const auto e_AB = (Fa) * (Sd1 * Fb);
-
-      std::cout << "<" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
-                << "> = " << e_AB << "\n"
-                << std::flush;
-
-      if (includeSR2) {
-        const auto Sd2 =
-          Fyn.Sigma_SR_direct2(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
-
-        const auto e_AB2 = (Fa) * (Sd2 * Fb);
-
-        std::cout << "<" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
-                  << ">: a = " << e_AB << ", b + c = " << e_AB2 << "\n"
-                  << std::flush;
+      const auto a =
+        w * (Fyn.dSigma_a(*h, w.kappa(), v.kappa(), v.en(), omega) * v);
+      const auto bc =
+        w * (Fyn.dSigma_bc(*h, w.kappa(), v.kappa(), v.en(), omega) * v);
+      std::vector<double> values{a, bc};
+      auto total = a + bc;
+      if (exchange) {
+        const auto ax =
+          w * (Fyn.dSigma_ax(*h, w.kappa(), v.kappa(), v.en(), omega) * v);
+        values.push_back(ax);
+        total += ax;
       }
-      // const auto Sd2 =
-      //   Fyn.Sigma_SR_direct2(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
+      values.push_back(total);
 
-      // // const auto Sd = Sd1 + Sd2;
-      // const auto e_AB2 = (Fa) * (Sd2 * Fb);
-
-      // std::cout << "Re <" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
-      //           << "> = " << e_AB << "," << e_AB2 << "\n"
-      //           << std::flush;
+      fmt::print("{:5s} {:5s}", w.shortSymbol(), v.shortSymbol());
+      for (const auto value : values) {
+        fmt::print(" {:+{}.{}e}", value, width, n_digits);
+      }
+      fmt::print("\n");
+      std::cout << std::flush;
     }
   }
+
+  // // 2) The direct diagrams, from the functions for the E1 operator only
+  // std::cout << "\nFunctions for the E1 operator only:\n";
+  // fmt::print("{:5s} {:5s}", "w", "v");
+  // for (const auto label : {"a", "b+c", "total"}) {
+  //   fmt::print(" {:>{}s}", label, width);
+  // }
+  // fmt::print("\n");
+  // for (const auto &w : wf.valence()) {
+  //   for (const auto &v : wf.valence()) {
+  //     if (h->isZero(w.kappa(), v.kappa()))
+  //       continue;
+  //     const auto omega = w.en() - v.en();
+
+  //     const auto a =
+  //       w * (Fyn.Sigma_SR_direct(w.kappa(), v.en(), v.kappa(), omega) * v);
+  //     const auto bc =
+  //       w * (Fyn.Sigma_SR_direct2(w.kappa(), v.en(), v.kappa(), omega) * v);
+
+  //     fmt::print("{:5s} {:5s}", w.shortSymbol(), v.shortSymbol());
+  //     for (const auto value : {a, bc, a + bc}) {
+  //       fmt::print(" {:+{}.{}e}", value, width, n_digits);
+  //     }
+  //     fmt::print("\n");
+  //     std::cout << std::flush;
+  //   }
+  // }
+  // std::cout << "\n";
 }
 
 } // namespace Module

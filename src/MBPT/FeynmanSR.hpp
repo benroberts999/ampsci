@@ -1,8 +1,13 @@
 #pragma once
+#include "LinAlg/Matrix.hpp"
 #include "MBPT/Feynman.hpp"
 #include "MBPT/RadialMatrix.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include <complex>
+
+namespace DiracOperator {
+class TensorOperator;
+}
 
 namespace MBPT {
 
@@ -11,33 +16,304 @@ namespace MBPT {
   @brief Structure radiation diagrams via the Feynman technique.
 
   @details
-  Extends Feynman with the correction to the correlation potential that is
-  first order in an external field, h, of frequency Omega: the field acts on
-  an internal line of the direct Sigma diagram. The diagrams are formed as
-  matrices on the radial sub-grid, by integration along Im(w), as for
-  Feynman::Sigma_direct.
+  Uses Feynman diagrams to calculate the structure radiation (vertex) correction 
+  for general one-body operators, using the existing @ref MBPT::Feynman class.
 
-  - Sigma_SR_direct  : field on the valence (outer) Green's function line
-  - Sigma_SR_direct2 : field on either Green's function line of the
-                       polarisation loop
+  The correction to the matrix element, due to externat field operator \f$ h \f$ 
+  with frequency \f$ \omega \f$ is:
+  \f[ 
+    \bra{w}\delta\Sigma(\varepsilon_v)\ket{v} 
+  \f],
+  with
+  \f$ \varepsilon_w = \varepsilon_v + \omega \f$. 
+  To simplify, only this (absorption) form is used; omega may be negative.
+  Other matrix element can be obtained by Hermicity,
 
-  @warning The external field is the E1 operator (rank 1, radial part r):
-           hard-coded.
+  The perturbed Green's function is
+  \f[
+    \delta G_{12}(\varepsilon) =
+      G_{1i}(\varepsilon + \omega)\, h_i\, G_{i2}(\varepsilon) .
+  \f]
+  Coordinate integration is implied over repeated Latin indices.
+
+  - dSigma_a  : field on the valence (outer) Green's function line
+  - dSigma_bc : field on either Green's function line of the polarisation
+                loop (perturbed polarisation operator, see dPi_b)
+  - dSigma_ax : exchange diagram, field on the internal line adjacent to
+                the final state w
+
+  The diagrams are formed as matrices on the radial sub-grid, by
+  integration along the imaginary energy axis.
+  After angular reduction, each gives the reduced matrix element as
+  `Fw * (dSigma * Fv)`.
+
+  Screening of the Coulomb lines and the hole-particle interaction are
+  included as set in FeynmanOptions (as for the correlation potential):
+  - dSigma_a  : both, through Q*Pi*Q
+  - dSigma_bc : both Coulomb lines screened; hole-particle in the
+                perturbed polarisation loop
+  - dSigma_ax : one Coulomb line screened; hole-particle in the exchange
+                operator
+  See each function for what is approximated.
+
+  Sigma_SR_direct, Sigma_SR_direct2, and the functions they use are for the
+  E1 operator only (hard-coded).
 */
 class FeynmanSR : public Feynman {
 
 public:
   using Feynman::Feynman;
 
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Direct SR diagram (a): 
+    external field on regular Greens function of the direct diagram.
+
+    @details
+    \f[
+      \delta\Sigma^{(a)}_{12}(\varepsilon_v) 
+        = \int\frac{d\varepsilon}{2\pi}\,
+        \delta G_{12}(\varepsilon_v + \varepsilon)\,
+        Q_{1i}\,\Pi_{ij}(\varepsilon)\,Q_{j2} .
+    \f]
+
+    @param h        External field operator. If frequency dependent, must
+                    already be set to the frequency
+    @param kappa_w  Kappa of the final state, w (on the left)
+    @param kappa_v  Kappa of the initial state, v (on the right)
+    @param en_v     Energy of the initial state
+    @param omega    Frequency of the external field,
+                    \f$ \varepsilon_w - \varepsilon_v \f$
+
+    @return Matrix on the sub-grid; the reduced matrix element is
+    `Fw * (dSigma * Fv)`.
+
+    @note Forms Q*Pi*Q if it has not yet been formed (see Feynman::form_qpiq).
+
+    @warning The operator must be local in r (see perturbed_greens).
+  
+    @note With screening and/or hole-particle (FeynmanOptions), these are
+          included through Q*Pi*Q: the polarisation loop with the
+          hole-particle interaction, and one Coulomb line screened.
+  */
+  GMatrix dSigma_a(const DiracOperator::TensorOperator &h, int kappa_w,
+                   int kappa_v, double en_v, double omega);
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Direct SR diagrams (b) + (c): 
+    external field inside the polarisation loop of the direct diagram.
+
+    @details
+    \f[
+      \delta\Sigma^{(b+c)}_{12}(\varepsilon_v) = \int\frac{d\varepsilon}{2\pi}\,
+        G_{12}(\varepsilon_v + \varepsilon)\,
+        Q_{1i}\,\delta\Pi_{ij}(\varepsilon)\,Q_{j2},
+    \f]
+    with the perturbed polarisation operator
+    \f$ \delta\Pi = \delta\Pi^{(b)} + \delta\Pi^{(c)} \f$ (see dPi_b), where
+    \f[
+      \delta\Pi^{(c)}_{12}(\varepsilon) =
+        \delta\Pi^{(b)}_{21}(\omega - \varepsilon) .
+    \f]
+
+    Parameters and return as for dSigma_a.
+
+    @warning The operator must be local in r (see perturbed_greens).
+
+    @note Hole-particle (FeynmanOptions): included in the perturbed
+          polarisation loop (see dPi_b).
+
+    @warning Screening (FeynmanOptions): both Coulomb lines are the screened
+          lines, taken at the integration energy. The line next to w is at
+          that energy less omega: the difference is neglected (none for
+          omega = 0).
+
+    @note Forms Q*Pi*Q if screening is on and it has not yet been formed
+          (see Feynman::form_qpiq).
+  */
+  GMatrix dSigma_bc(const DiracOperator::TensorOperator &h, int kappa_w,
+                    int kappa_v, double en_v, double omega);
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Exchange SR diagram (a_x): 
+    external field on the internal line next to final state.
+
+    @details
+    \f[
+      \delta\Sigma^{(a_{\rm x})}_{12}(\varepsilon_v)
+        = -\int\frac{d\varepsilon}{2\pi}\,
+        \delta G_{1i}(\varepsilon_v + \varepsilon)\,
+        Q_{1j}\,\Gamma_{ij2}(\varepsilon)\,Q_{i2} ,
+    \f]
+    with the exchange operator
+    \f[
+      \Gamma_{123}(\varepsilon) = i\sum_a \left[
+        P^a_{12}\, G^{\rm e}_{23}(\varepsilon_a - \varepsilon)
+        + G^{\rm e}_{12}(\varepsilon_a + \varepsilon)\, P^a_{23} \right],
+    \f]
+    summed over the polarised core states a.
+
+    Screening (FeynmanOptions): the line \f$ Q_{1j} \f$ is the screened
+    line (it is at the integration energy). \f$ Q_{i2} \f$ is at the
+    energy of the integral inside \f$ \Gamma \f$, and stays bare.
+
+    Hole-particle (FeynmanOptions): the excited Green's functions of
+    \f$ \Gamma \f$ include the interaction with the hole in a.
+
+    @param h        External field operator
+    @param kappa_w  Kappa of the final state (on the left)
+    @param kappa_v  Kappa of the initial state (on the right)
+    @param en_v     Energy of the initial state
+    @param omega    Frequency of the external field
+
+    @return dSigma^(ax): reduced matrix element is `Fw * (dSigma * Fv)`.
+
+    @note Local operators only (see perturbed_greens).
+    @note The g components of the Green's functions are contracted only if
+          FeynmanOptions::include_G_exchange (as for Feynman::Sigma_exchange).
+    @note Forms Q*Pi*Q if screening is on and it has not yet been formed
+          (see Feynman::form_qpiq).
+  */
+  GMatrix dSigma_ax(const DiracOperator::TensorOperator &h, int kappa_w,
+                    int kappa_v, double en_v, double omega);
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Perturbed polarisation operator, diagram (b): the polarisation
+    loop with the external field on the line running from vertex 1 to 2.
+
+    @details
+    \f[
+      \delta\Pi^{(b)}_{12}(\varepsilon) =
+        {\rm Tr}\int\frac{d\varepsilon'}{2\pi}\,
+        \delta G_{21}(\varepsilon' + \varepsilon)\,
+        G_{12}(\varepsilon' + \omega) .
+    \f]
+    The integral is the sum of the residues at the core poles of each of
+    the three Green's functions:
+    \f[
+      \delta\Pi^{(b)}_{12}(\varepsilon) = i\,{\rm Tr}\sum_a \Big[
+        P^a_{12}\, G_{2i}(\varepsilon_a + \varepsilon)\, h_i\,
+          G_{i1}(\varepsilon_a + \varepsilon - \omega)
+        + G_{12}(\varepsilon_a - \varepsilon)\, P^a_{2i}\, h_i\,
+          G_{i1}(\varepsilon_a - \omega)
+        + G_{12}(\varepsilon_a + \omega - \varepsilon)\,
+          G_{2i}(\varepsilon_a + \omega)\, h_i\, P^a_{i1}
+      \Big],
+    \f]
+    with \f$ P^a = \ket{a}\bra{a} \f$ for the polarised core states a, and
+    \f$ G = G^{\rm e} + G^{\rm c} \f$ (see green_loop). Expanding each G
+    gives the terms with one and two core lines; those with three core
+    lines sum to zero. Each term has the form
+    \f$ {\rm Tr}[A_{12}\,(B\,h\,C)_{21}] \f$ (see trace_product,
+    perturbed_greens), with angular factor L_ang_dPi.
+
+    @param h        External field operator
+    @param epsilon  Complex energy
+    @param omega    Frequency of the external field
+
+    @return \f$ \delta\pi^{(b)}_{kl}(r_1, r_2) \f$, indexed [k][l]: k, l are
+    the multipolarities at vertices 1 and 2. No integration measures.
+ 
+    @note Hole-particle (FeynmanOptions): the excited part of every loop
+          Green's function includes the interaction with the hole in a,
+          the core state of that term (see green_loop). In the terms where
+          h joins two core states the hole changes along the loop, so this
+          is approximate there.
+  */
+  LinAlg::Matrix<ComplexRMatrix> dPi_b(const DiracOperator::TensorOperator &h,
+                                       std::complex<double> epsilon,
+                                       double omega) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Product gA * t * gB, with t the radial part of the external
+    field h: the perturbed Green's function, for gA and gB Green's functions.
+
+    @details
+    t is the radial part of the operator @p h between partial waves A and
+    B, a 2x2 matrix in the spinor components at each r (see
+    DiracOperator::TensorOperator::radial_rhs):
+    \f[
+      [g_A\, t\, g_B]^{\mu\nu}_{12} = \sum_i \sum_{\lambda\sigma}
+        (g_A)^{\mu\lambda}_{1i}\, t^{\lambda\sigma}(r_i)\, dr_i\,
+        (g_B)^{\sigma\nu}_{i2} .
+    \f]
+    The angular factor of h (TensorOperator::angularF) is not included.
+
+    @param h        External field operator
+    @param kappa_A  Kappa of the partial wave of @p gA
+    @param kappa_B  Kappa of the partial wave of @p gB
+    @param gA       Matrix to the left of the operator
+    @param gB       Matrix to the right of the operator
+
+    @warning The operator must be local in r (multiplicative): not valid
+             for operators that involve derivatives.
+
+    @note Without g components, only the ff part of the operator is
+          included: zero for operators that only mix f and g.
+  */
+  ComplexGMatrix perturbed_greens(const DiracOperator::TensorOperator &h,
+                                  int kappa_A, int kappa_B,
+                                  const ComplexGMatrix &gA,
+                                  const ComplexGMatrix &gB) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Screening correction to the Coulomb line of multipolarity k, at
+    integration-grid energy index ie; zero if screening is off.
+
+    @details
+    \f[
+      \delta q^k(\varepsilon) = - i\,[q\,\pi\,\tilde q]^k(\varepsilon) ,
+    \f]
+    so the screened line is
+    \f[
+      \tilde q^k(\varepsilon) = q^k + \delta q^k(\varepsilon) .
+    \f]
+    From the stored Q*Pi*Q (must already be formed if screening is on).
+    Integration measure as for Feynman::get_qk.
+  */
+  ComplexRMatrix dQ_screening(int k, std::size_t ie) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Green's function for the lines of the polarisation loop,
+    G = G^e + G^c: excited states and polarised core states.
+
+    @details
+    \f[
+      G(\varepsilon) = G^{\rm e}(\varepsilon)
+        + \sum_a \frac{\ket{a}\bra{a}}{\varepsilon - \varepsilon_a},
+    \f]
+    where the sum is over the polarised core states (n >= n_min) only. If
+    all core states are polarised, this is the full Hartree-Fock Green's
+    function.
+
+    @param kappa  Partial wave
+    @param en     Complex energy
+    @param Fc_hp  If given, the excited part includes the hole-particle
+                  interaction for this core state (see
+                  Feynman::green_excited)
+  */
+  ComplexGMatrix green_loop(int kappa, std::complex<double> en,
+                            const DiracSpinor *Fc_hp = nullptr) const;
+
+  //----------------------------------------------------------------------------
+  // E1 operator only:
+
   /*!
     @brief Direct structure radiation diagram with the external field on the
-    valence line.
+    valence line; E1 only.
 
     @details
     The valence line of the direct diagram is replaced by the perturbed
     Green's function (see perturbed_greens),
     \f[
-      \delta G = G_A(\varepsilon + \omega + \Omega)\, h\, G_B(\varepsilon + \omega),
+      \delta G 
+      = G_A(\varepsilon + \omega + \Omega)\, h\, G_B(\varepsilon + \omega),
     \f]
     summed over the partial waves A, B of the two Green's functions, and
     the multipolarity k of Q*Pi*Q. The matrix element is
@@ -54,20 +330,25 @@ public:
 
   /*!
     @brief Direct structure radiation diagrams with the external field
-    inside the polarisation loop.
+    inside the polarisation loop; E1 only.
 
     @details
     The polarisation operator is replaced by the perturbed polarisation
-    operator (see perturbed_polarisation_kl); the valence line is the
-    unperturbed Green's function. Sum of the two diagrams (field on either
-    line of the loop).
+    operator (see perturbed_polarisation_kl), between two bare Coulomb
+    lines; the valence line is the unperturbed Green's function. Sum of the
+    two diagrams (field on either line of the loop): with
+    \f$ \delta\Pi \f$ that of perturbed_polarisation_kl, the second is
+    \f[
+      (-1)^{k+l+K}\, \delta\Pi^{lk}(r_2, r_1; \Omega - \omega) .
+    \f]
+    Same result as dSigma_bc for the E1 operator.
 
     Parameters as for Sigma_SR_direct.
   */
   GMatrix Sigma_SR_direct2(int kv, double env, int kw, double Omega);
 
   /*!
-    @brief Perturbed Green's function, dG = gA * h * gB.
+    @brief Perturbed Green's function, dG = gA * h * gB; E1 only.
 
     @details
     \f[
@@ -80,13 +361,14 @@ public:
 
   /*!
     @brief Perturbed polarisation operator, for multipolarities k and l of
-    the two Coulomb lines.
+    the two Coulomb lines; E1 only.
 
     @details
     The polarisation loop with the external field acting on one of its
     Green's function lines. Summed over the polarised core states and the
     partial waves of the two internal lines; includes the angular factor
-    (see L_ang_dSR_QdPiQ).
+    (see L_ang_dSR_QdPiQ). The lines of the loop are the loop Green's
+    functions (see green_loop). Same as dPi_b for the E1 operator.
 
     @param k               Multipolarity of the first Coulomb line
     @param l               Multipolarity of the second Coulomb line
@@ -100,39 +382,108 @@ public:
                                            bool hole_particle) const;
 };
 
+//==============================================================================
+//==============================================================================
+
+//------------------------------------------------------------------------------
 /*!
-  @brief Angular factor for the direct structure radiation diagram with the
-  external field on the valence line (FeynmanSR::Sigma_SR_direct).
+  @brief Angular factor for structure radiation diagram (a)
+  (FeynmanSR::dSigma_a).
 
   @details
-  (-1)^(j_A + j_B + k + K) {j_w K j_v; j_B k j_A}, with K = 1 the rank of
-  the external field. A, B are the partial waves of the two Green's
-  functions, k the multipolarity of the Coulomb lines.
+  \f[
+    (-1)^{j_A + j_B + k + K}
+    \begin{Bmatrix} j_w & K & j_v \\ j_B & k & j_A \end{Bmatrix},
+  \f]
+  with K the rank of the external field, w the final state (on the left),
+  v the initial state (on the right), A and B the partial waves of the two
+  Green's functions (A next to w), and k the multipolarity of the Coulomb
+  lines.
 */
-double L_ang_dSR(int kw, int kv, int kB, int kA, int k);
+double L_ang_dSR(int K, int kw, int kv, int kB, int kA, int k);
 
+//----------------------------------------------------------------------------
+/*!
+  @brief Angular factor for a term of the perturbed polarisation operator
+  (FeynmanSR::dPi_b).
+
+  @details
+  For a term \f$ {\rm Tr}[A_{12}\,(B\,h\,C)_{21}] \f$, with multipolarity
+  k at vertex 1 and l at vertex 2, and K the rank of h:
+  \f[
+    (-1)^{k+l+K+1}
+    \begin{Bmatrix} k & l & K \\ j_B & j_C & j_A \end{Bmatrix}
+    C^k_{CA}\, C^l_{AB} .
+  \f]
+  The angular factor of h, \f$ \langle B\|h\|C\rangle \f$, is not included.
+*/
+double L_ang_dPi(int K, int k, int l, int kappa_A, int kappa_B, int kappa_C);
+
+/*!
+  @brief Angular factor coupling the perturbed polarisation operator to the
+  valence line, for structure radiation diagrams (b) + (c)
+  (FeynmanSR::dSigma_bc).
+
+  @details
+  \f[
+    (-1)^{j_w + j_v}
+    \begin{Bmatrix} j_w & K & j_v \\ l & j_\alpha & k \end{Bmatrix},
+  \f]
+  with w the final state (on the left), v the initial state (on the right),
+  \f$ \alpha \f$ the partial wave of the valence line, and k, l the
+  multipolarities of the left and right Coulomb lines. The factors
+  \f$ C^k_{w\alpha}\, C^l_{\alpha v} \f$ are not included.
+*/
+double L_ang_dSigma_bc(int K, int kappa_w, int kappa_v, int kappa_alpha, int k,
+                       int l);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Angular factor for the exchange part of structure radiation
+  diagram (a_x) (FeynmanSR::dSigma_ax).
+
+  @details
+  \f[
+    (-1)^{j_\gamma + j_\delta + k + l}
+    \begin{Bmatrix} j_\beta & l & j_\gamma \\ j_\delta & k & j_v \end{Bmatrix}
+    C^l_{\beta\gamma}\, C^k_{\gamma\delta}\, C^l_{\delta v} ,
+  \f]
+  with v the initial state (on the right), \f$ \beta \f$ the partial wave
+  of the Green's function next to the exchange operator,
+  \f$ \gamma, \delta \f$ those of the two lines of the exchange operator
+  (\f$ \delta \f$ next to v), l the multipolarity of the Coulomb line
+  joining the \f$ (\beta, \gamma) \f$ and \f$ (\delta, v) \f$ vertices, and
+  k that of the line joining the \f$ (\gamma, \delta) \f$ vertex to the
+  final state.
+*/
+double L_ang_dSigma_ax(int kappa_v, int kappa_beta, int kappa_gamma,
+                       int kappa_delta, int k, int l);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Spinor trace of the product of two spinor matrices with opposite
+  coordinate order, Tr[A_12 X_21].
+
+  @details
+  \f[
+    T_{12} = \sum_{\mu\nu} A^{\mu\nu}_{12}\, X^{\nu\mu}_{21} .
+  \f]
+  No coordinate integration. With \f$ A = P^a = \ket{a}\bra{a} \f$, this is
+  \f$ F_a^\dagger(r_2)\, X(r_2, r_1)\, F_a(r_1) \f$.
+*/
+ComplexRMatrix trace_product(const ComplexGMatrix &A, const ComplexGMatrix &X);
+
+//------------------------------------------------------------------------------
 /*!
   @brief Angular factor for the perturbed polarisation operator
-  (FeynmanSR::perturbed_polarisation_kl).
+  (FeynmanSR::perturbed_polarisation_kl); E1 only.
 
   @details
-  (-1)^(l + k + 1) C^k_{ca} C^l_{ab} {K l k; j_a j_c j_b}, with K the rank
+  (-1)^(l + k + K + 1) C^k_{ca} C^l_{ab} {K l k; j_a j_c j_b}, with K the rank
   of the external field, k and l the multipolarities of the two Coulomb
   lines, and a, b, c the three lines of the loop (the field acts between b
   and c).
 */
 double L_ang_dSR_QdPiQ(int K, int k, int l, int ka, int kb, int kc);
-
-/*!
-  @brief Element-wise product of two spinor matrices, block by block.
-
-  @details
-  \f[
-    C^{\mu\nu}_{ij} = A^{\mu\nu}_{ij} B^{\mu\nu}_{ij} .
-  \f]
-  No sum over the spinor indices. If @p b has no g parts, the g blocks of
-  the result are zero.
-*/
-ComplexGMatrix mult_elements_spinor(ComplexGMatrix a, const ComplexGMatrix &b);
 
 } // namespace MBPT

@@ -46,7 +46,7 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
      {"n_min_core", "Minimum n for core states in the diagrams [1]"},
      {"fk", "list: Coulomb screening factors for each k [none]"},
      {"etak", "list: Hole-particle factors for each k [none]"},
-     {"n_digits", "Number of decimal places printed [2]"}});
+     {"n_digits", "Number of decimal places printed [3]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -63,7 +63,7 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto n_min_core = input.get("n_min_core", 1);
   const auto fk = input.get("fk", std::vector<double>{});
   const auto etak = input.get("etak", std::vector<double>{});
-  const auto n_digits = input.get("n_digits", 2);
+  const auto n_digits = input.get("n_digits", 3);
 
   auto [core, excited] =
     DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel(), n_min_core);
@@ -132,12 +132,10 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
     Amplitudes::me_table(basis, h.get(), rpa.get(), nullptr, 0.0);
   std::cout << "\n";
 
-  // Values are printed as +d.[n_digits]e-xx; columns at least as wide as the
-  // "exchange" header
-  const auto width = std::max(n_digits + 7, 8);
+  // Values are printed as +d.[n_digits]e-xx
+  const auto width = n_digits + 7;
   fmt::print("{:5s} {:5s}", "w", "v");
-  for (const auto label :
-       {"a", "b", "c", "ax", "bx", "cx", "direct", "exchange", "total"}) {
+  for (const auto label : {"a", "b", "c", "ax", "bx", "cx", "total"}) {
     fmt::print(" {:>{}s}", label, width);
   }
   fmt::print("\n");
@@ -157,11 +155,8 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
                                             h_table, h->rank(), fk, etak) :
                                     SR_b_bx(w, v, omega, core, excited, yk,
                                             h_table, h->rank(), fk, etak);
-      const auto direct = a + b + c;
-      const auto exchange = ax + bx + cx;
       fmt::print("{:5s} {:5s}", w.shortSymbol(), v.shortSymbol());
-      for (const auto value :
-           {a, b, c, ax, bx, cx, direct, exchange, direct + exchange}) {
+      for (const auto value : {a, b, c, ax, bx, cx, a + b + c + ax + bx + cx}) {
         fmt::print(" {:+{}.{}e}", value, width, n_digits);
       }
       fmt::print("\n");
