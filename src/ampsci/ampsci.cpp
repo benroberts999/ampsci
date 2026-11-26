@@ -112,8 +112,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   for (const auto &config : AtomData::core_parser(core_terms)) {
     num_core_electrons += config.num;
   }
-  const auto Zion = std::max(1, atom_Z - num_core_electrons);
-  const auto radius_scale = 1.0 / std::sqrt(double(Zion));
+  const auto Zion = atom_Z - num_core_electrons;
+  // default ~120 for 1 valence, ~50 for nobel gasses
+  const auto radius_scale =
+    Zion > 0 ? 1.0 / std::sqrt(double(Zion)) : 50.0 / 120.0;
 
   //----------------------------------------------------------------------------
   // Grid: Get + setup grid parameters
@@ -138,7 +140,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto du = input.get<double>({"Grid"}, "du");
   // if num_points = 0, uses du.
   const auto num_points = du ? 0ul : input.get({"Grid"}, "num_points", 2000ul);
-  const auto b = input.get({"Grid"}, "b", 30.0 * radius_scale);
+  const auto b = input.get({"Grid"}, "b", 20.0 * radius_scale);
   const auto grid_type = (b <= r0 || b >= rmax) ?
                            "logarithmic" :
                            input.get({"Grid"}, "type", "loglinear"s);
