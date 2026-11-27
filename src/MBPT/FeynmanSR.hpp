@@ -48,6 +48,7 @@ namespace MBPT {
                 loop (perturbed polarisation operator, see dPi_b)
   - dSigma_ax_cx : exchange diagrams, field on the internal line adjacent
                 to the final state w (a_x), or to the initial state v (c_x)
+  - dSigma_bx : exchange diagram, field on the middle internal line (b_x)
 
   The diagrams are formed as matrices on the radial sub-grid, by
   integration along the imaginary energy axis.
@@ -61,6 +62,8 @@ namespace MBPT {
                 perturbed polarisation loop
   - dSigma_ax_cx : one Coulomb line screened; hole-particle in the
                 exchange operator
+  - dSigma_bx : one Coulomb line screened; hole-particle in the
+                perturbed exchange operator
   See each function for what is approximated.
 
   Sigma_SR_direct, Sigma_SR_direct2, and the functions they use are for the
@@ -275,6 +278,184 @@ public:
     const DiracSpinor &Fa, const std::vector<ComplexGMatrix> &G_delta,
     const std::vector<ComplexGMatrix> &G_gamma, std::size_t ie,
     std::complex<double> i_d_epsilon) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Exchange structure radiation diagram (b_x), for any external
+    field operator: the field acts on the middle internal line.
+
+    @details
+    \f[
+      \delta\Sigma^{(b_{\rm x})}_{12}(\varepsilon_v)
+        = -\int\frac{d\varepsilon}{2\pi}\,
+        G_{1i}(\varepsilon_v + \varepsilon)\,
+        Q_{1j}\,\delta\Gamma_{ij2}(\varepsilon)\,Q_{i2} ,
+    \f]
+    with the perturbed exchange operator
+    \f[
+      \delta\Gamma_{123}(\varepsilon) =
+        \int\frac{d\varepsilon'}{2\pi}\,
+        \delta G_{12}(\varepsilon + \varepsilon')\,
+        G_{23}(\varepsilon' + \omega) .
+    \f]
+    The inner integral is the sum of the residues at the core poles of
+    each of its three Green's functions:
+    \f[
+      \delta\Gamma_{123}(\varepsilon) = i\sum_a \Big[
+        [P^a h\, G(\varepsilon_a - \omega)]_{12}\,
+          G_{23}(\varepsilon_a - \varepsilon)
+        + [G(\varepsilon_a + \omega)\, h P^a]_{12}\,
+          G_{23}(\varepsilon_a - \varepsilon + \omega)
+        + [G(\varepsilon_a + \varepsilon)\, h\,
+          G(\varepsilon_a + \varepsilon - \omega)]_{12}\, P^a_{23}
+      \Big],
+    \f]
+    summed over the polarised core states a, with
+    \f$ G = G^{\rm e} + G^{\rm c} \f$ (see green_loop).
+
+    The parts with three core lines sum to zero. For operators with large
+    core matrix elements (e.g., hyperfine) each is much larger than the
+    diagram, so they are subtracted from every term: the result does not
+    rely on their cancellation.
+
+    If h joins a core state to itself, the first two terms each contain a
+    part with \f$ P^a h P^a \f$ that has the factor \f$ 1/\omega \f$
+    (as in dPi_b). The two are replaced by the single term
+    \f[
+      -[P^a h P^a]_{12}\,
+      \left[G^{\rm e}(\varepsilon_a - \varepsilon)\,
+        G^{\rm e}(\varepsilon_a - \varepsilon + \omega)\right]_{23} .
+    \f]
+
+    In the first two terms the perturbed line does not depend on the
+    integration energy: it is the core state times a perturbed core state,
+    \f$ X_a = G(\varepsilon_a + \omega)\, h F_a \f$ and
+    \f$ Y_a = F_a h\, G(\varepsilon_a - \omega) \f$, formed once.
+
+    Screening (FeynmanOptions): as for dSigma_ax_cx, the line
+    \f$ Q_{1j} \f$ is the screened line, \f$ Q_{i2} \f$ stays bare. The
+    screened line is taken at the integration energy
+    \f$ \varepsilon \f$ (it is at \f$ \varepsilon - \omega \f$: the
+    difference is neglected; none for \f$ \omega = 0 \f$).
+
+    Hole-particle (FeynmanOptions): the excited part of every Green's
+    function of \f$ \delta\Gamma \f$ includes the interaction with the
+    hole in a.
+
+    @param h        External field operator
+    @param kappa_w  Kappa of the final state (on the left)
+    @param kappa_v  Kappa of the initial state (on the right)
+    @param en_v     Energy of the initial state
+    @param omega    Frequency of the external field
+    @param dV       Optional: core polarisation; vertex is then h + dV
+                    (see dSigma_a)
+
+    @return dSigma^(bx): the reduced matrix element is
+    `Fw * (dSigma * Fv)`.
+
+    @note Local operators only (see perturbed_greens).
+    @note The g components of the Green's functions are contracted only if
+          FeynmanOptions::include_G_exchange (as for Feynman::Sigma_exchange).
+    @note Forms Q*Pi*Q if screening is on and it has not yet been formed
+          (see Feynman::form_qpiq).
+    @note Converges more slowly with the sub-grid than (a_x): the integrand
+          falls only as the inverse square of the integration energy.
+  */
+  GMatrix dSigma_bx(const DiracOperator::TensorOperator &h, int kappa_w,
+                    int kappa_v, double en_v, double omega,
+                    const ExternalField::CorePolarisation *dV = nullptr);
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Term of the exchange diagram (b_x) (see dSigma_bx) in which the
+    perturbed line is a product of a function of each of its coordinates;
+    one integration energy.
+
+    @details
+    \f[
+      {\rm Re}\left[ i\,d\varepsilon\;
+        G_{1i}\, Q_{1j}\, [F_i(r_i)\, F_j(r_j)]\, G_{j2}\, Q_{i2} \right],
+    \f]
+    summed over the partial waves of \f$ G_{1i} \f$ and \f$ G_{j2} \f$
+    and the multipolarities of the two Coulomb lines.
+
+    @param K              Rank of the external field
+    @param kappa_w        Kappa of the final state (on the left)
+    @param kappa_v        Kappa of the initial state (on the right)
+    @param kappa_gamma_i  Partial wave of the perturbed line at vertex i
+    @param kappa_gamma_j  Partial wave of the perturbed line at vertex j
+    @param F_i            The function of \f$ r_i \f$
+    @param Fj_G_delta     The line from j to 2 with the function of
+                          \f$ r_j \f$ attached (see spinor_times_greens),
+                          for each kappa index; empty for those not
+                          included
+    @param G_beta         Green's function of the line next to w, for each
+                          kappa index
+    @param ie             Index of the integration energy (for the screened
+                          Coulomb line, see dQ_screening)
+    @param i_d_epsilon    i times the integration weight
+                          \f$ d\varepsilon \f$
+  */
+  GMatrix dSigma_bx_separable_term(
+    int K, int kappa_w, int kappa_v, int kappa_gamma_i, int kappa_gamma_j,
+    const DiracSpinor &F_i,
+    const std::vector<std::vector<ComplexRMatrix>> &Fj_G_delta,
+    const std::vector<ComplexGMatrix> &G_beta, std::size_t ie,
+    std::complex<double> i_d_epsilon) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Term of the exchange diagram (b_x) (see dSigma_bx) in which the
+    line next to the initial state is the core state a; one integration
+    energy.
+
+    @details
+    \f[
+      {\rm Re}\left[ i\,d\varepsilon\;
+        G_{1i}\, Q_{1j}\, \delta G_{ij}\, P^a_{j2}\, Q_{i2} \right],
+    \f]
+    summed over the partial waves of \f$ G_{1i} \f$ and
+    \f$ \delta G_{ij} \f$ and the multipolarities of the two Coulomb
+    lines.
+
+    @param K            Rank of the external field
+    @param kappa_w      Kappa of the final state (on the left)
+    @param kappa_v      Kappa of the initial state (on the right)
+    @param Fa           Core state a
+    @param dG           Perturbed line (see perturbed_greens), indexed by
+                        the kappa indices of its partial waves at vertices
+                        i and j; empty where zero by selection rules
+    @param G_beta       Green's function of the line next to w, for each
+                        kappa index
+    @param ie           Index of the integration energy (for the screened
+                        Coulomb line, see dQ_screening)
+    @param i_d_epsilon  i times the integration weight \f$ d\varepsilon \f$
+  */
+  GMatrix
+  dSigma_bx_core_term(int K, int kappa_w, int kappa_v, const DiracSpinor &Fa,
+                      const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dG,
+                      const std::vector<ComplexGMatrix> &G_beta, std::size_t ie,
+                      std::complex<double> i_d_epsilon) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief A Green's function with a radial function attached to its first
+    coordinate.
+
+    @details
+    \f[
+      [F\,G]^{\nu}_{12} = \sum_{\mu} F^{\mu}(r_1)\, G^{\mu\nu}_{12} ,
+    \f]
+    with no coordinate integration. Spinor components as in the exchange
+    diagrams (f only, unless FeynmanOptions::include_G_exchange).
+
+    @param F  Radial function (on the full grid)
+    @param G  Green's function
+
+    @return One radial matrix for each spinor component \f$ \nu \f$.
+  */
+  std::vector<ComplexRMatrix>
+  spinor_times_greens(const DiracSpinor &F, const ComplexGMatrix &G) const;
 
   //----------------------------------------------------------------------------
   /*!
@@ -663,6 +844,39 @@ double L_ang_dSigma_bc(int K, int kappa_w, int kappa_v, int kappa_alpha, int k,
 */
 double L_ang_dSigma_ax(int kappa_v, int kappa_beta, int kappa_gamma,
                        int kappa_delta, int k, int l);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Angular factor for the exchange structure radiation diagram (b_x)
+  (FeynmanSR::dSigma_bx).
+
+  @details
+  \f[
+    (-1)^{j_w + j_v + k + l + K}
+    \begin{Bmatrix}
+      j_\beta & k & j_w \\
+      j_{\gamma_i} & j_{\gamma_j} & K \\
+      l & j_\delta & j_v
+    \end{Bmatrix}
+    C^k_{w\beta}\, C^l_{\beta\gamma_i}\, C^k_{\gamma_j\delta}\,
+    C^l_{\delta v} ,
+  \f]
+  with K the rank of the external field, w the final state (on the left),
+  v the initial state (on the right), \f$ \beta \f$ the partial wave of
+  the Green's function next to w, \f$ \gamma_i, \gamma_j \f$ those of
+  the perturbed line either side of the field vertex (\f$ \gamma_i \f$
+  next to \f$ \beta \f$), \f$ \delta \f$ that of the line next to v, k
+  the multipolarity of the Coulomb line joining the \f$ (w, \beta) \f$
+  and \f$ (\gamma_j, \delta) \f$ vertices, and l that of the line
+  joining the \f$ (\beta, \gamma_i) \f$ and \f$ (\delta, v) \f$
+  vertices.
+
+  The angular factor of h,
+  \f$ \langle \gamma_i\|h\|\gamma_j\rangle \f$, is not included.
+*/
+double L_ang_dSigma_bx(int K, int kappa_w, int kappa_v, int kappa_beta,
+                       int kappa_gamma_i, int kappa_gamma_j, int kappa_delta,
+                       int k, int l);
 
 //------------------------------------------------------------------------------
 /*!

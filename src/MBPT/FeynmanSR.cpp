@@ -1049,6 +1049,517 @@ FeynmanSR::dSigma_ax_cx(const DiracOperator::TensorOperator &h, int kappa_w,
 }
 
 //==============================================================================
+
+double L_ang_dSigma_bx(int K, int kappa_w, int kappa_v, int kappa_beta,
+                       int kappa_gamma_i, int kappa_gamma_j, int kappa_delta,
+                       int k, int l) {
+  const auto ck_w_beta = Angular::Ck_kk(k, kappa_w, kappa_beta);
+  const auto cl_beta_gamma = Angular::Ck_kk(l, kappa_beta, kappa_gamma_i);
+  const auto ck_gamma_delta = Angular::Ck_kk(k, kappa_gamma_j, kappa_delta);
+  const auto cl_delta_v = Angular::Ck_kk(l, kappa_delta, kappa_v);
+  if (ck_w_beta == 0.0 || cl_beta_gamma == 0.0 || ck_gamma_delta == 0.0 ||
+      cl_delta_v == 0.0)
+    return 0.0;
+  const auto tj_w = Angular::twoj_k(kappa_w);
+  const auto tj_v = Angular::twoj_k(kappa_v);
+  const auto ninej = Angular::ninej_2(
+    Angular::twoj_k(kappa_beta), 2 * k, tj_w, Angular::twoj_k(kappa_gamma_i),
+    Angular::twoj_k(kappa_gamma_j), 2 * K, 2 * l, Angular::twoj_k(kappa_delta),
+    tj_v);
+  return Angular::neg1pow_2(tj_w + tj_v + 2 * k + 2 * l + 2 * K) * ninej *
+         ck_w_beta * cl_beta_gamma * ck_gamma_delta * cl_delta_v;
+}
+
+//==============================================================================
+
+std::vector<ComplexRMatrix>
+FeynmanSR::spinor_times_greens(const DiracSpinor &F,
+                               const ComplexGMatrix &G) const {
+  // [F G]^nu_12 = sum_t F^t(r_1) G^{t nu}_12
+  const ComplexRMatrix radial_zero(m_i0, m_stride, m_subgrid_points, m_grid);
+  const auto num_spinor = m_include_G_exchange ? num_spins() : 1ul;
+  std::vector<ComplexRMatrix> F_G(num_spinor, radial_zero);
+  for (auto nu = 0ul; nu < num_spinor; ++nu) {
+    for (auto t = 0ul; t < num_spinor; ++t) {
+      F_G[nu] += mult_rows_full(G.radial(t, nu), F.component(t));
+    }
+  }
+  return F_G;
+}
+
+//==============================================================================
+
+GMatrix FeynmanSR::dSigma_bx_separable_term(
+  int K, int kappa_w, int kappa_v, int kappa_gamma_i, int kappa_gamma_j,
+  const DiracSpinor &F_i,
+  const std::vector<std::vector<ComplexRMatrix>> &Fj_G_delta,
+  const std::vector<ComplexGMatrix> &G_beta, std::size_t ie,
+  std::complex<double> i_d_epsilon) const {
+
+  // Re[ i*d_epsilon * G_1i Q_1j [F_i(r_i) F_j(r_j)] G_j2 Q_i2 ]
+  //
+  // The perturbed line (i to j) is a product of a function of r_i and one
+  // of r_j, so the term is a product of matrices in two coordinates:
+  // dSigma_12 = [G_beta F_i q^l]_12 * [q^k (F_j G_delta)]_12
+  //
+  // With screening, Q_1j (multipolarity k) is the screened line, Q_i2
+  // stays bare (as for (a_x)).
+
+  const ComplexRMatrix radial_zero(m_i0, m_stride, m_subgrid_points, m_grid);
+  const auto num_kappas = m_max_ki + 1;
+  const auto num_ks = std::size_t(m_max_k + 1);
+  // Spinor components in the contractions: f only, unless g is included
+  // in the exchange diagrams
+  const auto num_spinor = m_include_G_exchange ? num_spins() : 1ul;
+
+  GMatrix dSigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  for (auto k = 0ul; k < num_ks; ++k) {
+    for (auto i_delta = 0ul; i_delta < num_kappas; ++i_delta) {
+      if (Fj_G_delta[i_delta].empty())
+        continue;
+      const auto kappa_delta = Angular::kindex_to_kappa(i_delta);
+      if (Angular::Ck_kk(int(k), kappa_gamma_j, kappa_delta) == 0.0)
+        continue;
+
+      // [q^k (F_j G_delta)]^nu_12. Formed when first needed
+      std::vector<ComplexRMatrix> qk_Fj_G;
+
+      for (auto l = 0ul; l < num_ks; ++l) {
+
+        // [G F_i]^mu_1i = sum_beta L sum_s G_beta^{mu s}_1i F_i^s(r_i)
+        std::vector<ComplexRMatrix> G_Fi(num_spinor, radial_zero);
+        bool non_zero = false;
+        for (auto i_beta = 0ul; i_beta < num_kappas; ++i_beta) {
+          const auto L = L_ang_dSigma_bx(
+            K, kappa_w, kappa_v, Angular::kindex_to_kappa(i_beta),
+            kappa_gamma_i, kappa_gamma_j, kappa_delta, int(k), int(l));
+          if (L == 0.0)
+            continue;
+          for (auto mu = 0ul; mu < num_spinor; ++mu) {
+            for (auto s = 0ul; s < num_spinor; ++s) {
+              G_Fi[mu] += L * mult_cols_full(G_beta[i_beta].radial(mu, s),
+                                             F_i.component(s));
+            }
+          }
+          non_zero = true;
+        }
+        if (!non_zero)
+          continue;
+
+        if (qk_Fj_G.empty()) {
+          // Screened Coulomb line, Q + dQ
+          const auto qk_screened = get_qk(int(k)) + dQ_screening(int(k), ie);
+          for (auto nu = 0ul; nu < num_spinor; ++nu) {
+            qk_Fj_G.push_back(qk_screened * Fj_G_delta[i_delta][nu]);
+          }
+        }
+
+        const auto ql = get_qk(int(l)).dri();
+        for (auto mu = 0ul; mu < num_spinor; ++mu) {
+          const auto G_Fi_ql = G_Fi[mu] * ql;
+          for (auto nu = 0ul; nu < num_spinor; ++nu) {
+            dSigma.sp(mu, nu) +=
+              (i_d_epsilon * mult_elements(G_Fi_ql, qk_Fj_G[nu]))
+                .real()
+                .Rmatrix();
+          }
+        }
+      }
+    }
+  }
+
+  return dSigma;
+}
+
+//==============================================================================
+
+GMatrix FeynmanSR::dSigma_bx_core_term(
+  int K, int kappa_w, int kappa_v, const DiracSpinor &Fa,
+  const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dG,
+  const std::vector<ComplexGMatrix> &G_beta, std::size_t ie,
+  std::complex<double> i_d_epsilon) const {
+
+  // Re[ i*d_epsilon * G_1i Q_1j dG_ij P^a_j2 Q_i2 ]
+  //
+  // P^a_j2 = F_a(r_j) F_a(r_2) is rank one:
+  // dSigma_12 = [ (G_beta,1i * [q^k dG F_a]_1i) q^l ]_12 F_a(r_2)
+  // The part in round brackets is summed over k, beta, and the partial
+  // waves of dG, for each l and spinor component mu: [l][mu].
+  //
+  // With screening, Q_1j (multipolarity k) is the screened line, Q_i2
+  // stays bare (as for (a_x)).
+
+  const ComplexRMatrix radial_zero(m_i0, m_stride, m_subgrid_points, m_grid);
+  const auto num_kappas = m_max_ki + 1;
+  const auto num_ks = std::size_t(m_max_k + 1);
+  // Spinor components in the contractions: f only, unless g is included
+  // in the exchange diagrams
+  const auto num_spinor = m_include_G_exchange ? num_spins() : 1ul;
+  const auto kappa_a = Fa.kappa();
+
+  GMatrix dSigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  std::vector<std::vector<ComplexRMatrix>> G_qk_dG_Fa(num_ks);
+  for (auto k = 0ul; k < num_ks; ++k) {
+    for (auto i_gamma_i = 0ul; i_gamma_i < num_kappas; ++i_gamma_i) {
+      for (auto i_gamma_j = 0ul; i_gamma_j < num_kappas; ++i_gamma_j) {
+        const auto &dG_ij = dG(i_gamma_i, i_gamma_j);
+        if (!dG_ij)
+          continue;
+        const auto kappa_gamma_i = Angular::kindex_to_kappa(i_gamma_i);
+        const auto kappa_gamma_j = Angular::kindex_to_kappa(i_gamma_j);
+        if (Angular::Ck_kk(int(k), kappa_gamma_j, kappa_a) == 0.0)
+          continue;
+
+        // [q^k dG F_a]^s_1i = sum_t q^k_1j dG^{s t}_ij F_a^t(r_j)
+        // Formed when first needed
+        std::vector<ComplexRMatrix> qk_dG_Fa;
+
+        for (auto l = 0ul; l < num_ks; ++l) {
+          for (auto i_beta = 0ul; i_beta < num_kappas; ++i_beta) {
+            const auto L = L_ang_dSigma_bx(
+              K, kappa_w, kappa_v, Angular::kindex_to_kappa(i_beta),
+              kappa_gamma_i, kappa_gamma_j, kappa_a, int(k), int(l));
+            if (L == 0.0)
+              continue;
+
+            if (qk_dG_Fa.empty()) {
+              // Screened Coulomb line, Q + dQ
+              const auto qk_screened =
+                get_qk(int(k)) + dQ_screening(int(k), ie);
+              for (auto s = 0ul; s < num_spinor; ++s) {
+                ComplexRMatrix dG_Fa(radial_zero);
+                for (auto t = 0ul; t < num_spinor; ++t) {
+                  dG_Fa += mult_rows_full(dG_ij->radial(s, t).transpose(),
+                                          Fa.component(t));
+                }
+                qk_dG_Fa.push_back(qk_screened * dG_Fa);
+              }
+            }
+            if (G_qk_dG_Fa[l].empty()) {
+              G_qk_dG_Fa[l].assign(num_spinor, radial_zero);
+            }
+            for (auto mu = 0ul; mu < num_spinor; ++mu) {
+              for (auto s = 0ul; s < num_spinor; ++s) {
+                G_qk_dG_Fa[l][mu] +=
+                  L * mult_elements(G_beta[i_beta].radial(mu, s), qk_dG_Fa[s]);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  for (auto l = 0ul; l < num_ks; ++l) {
+    if (G_qk_dG_Fa[l].empty())
+      continue;
+    const auto ql = get_qk(int(l)).dri();
+    for (auto mu = 0ul; mu < num_spinor; ++mu) {
+      const auto G_qk_dG_Fa_ql = G_qk_dG_Fa[l][mu] * ql;
+      for (auto nu = 0ul; nu < num_spinor; ++nu) {
+        dSigma.sp(mu, nu) +=
+          (i_d_epsilon * mult_cols_full(G_qk_dG_Fa_ql, Fa.component(nu)))
+            .real()
+            .Rmatrix();
+      }
+    }
+  }
+
+  return dSigma;
+}
+
+//==============================================================================
+
+GMatrix FeynmanSR::dSigma_bx(const DiracOperator::TensorOperator &h,
+                             int kappa_w, int kappa_v, double en_v,
+                             double omega,
+                             const ExternalField::CorePolarisation *dV) {
+
+  // dSigma^(bx)_12(e_v) = -int de/2pi G_1i(e_v + e) Q_1j dGamma_ij2(e) Q_i2,
+  // dGamma_ij2(e) = int de'/2pi dG_ij(e + e') G_j2(e' + omega)
+  //
+  // The exchange operator with the field on its first line (i to j). The
+  // inner integral is the sum of the residues at the core poles of each of
+  // its three Green's functions, G = G^e + G^c:
+  //   dGamma_ij2(e) = i sum_a [
+  //       [P^a h G(e_a - omega)]_ij             G_j2(e_a - e)
+  //     + [G(e_a + omega) h P^a]_ij             G_j2(e_a - e + omega)
+  //     + [G(e_a + e) h G(e_a + e - omega)]_ij  P^a_j2  ]
+  //
+  // The parts with three core lines (G^c for every G) sum to zero. They
+  // are large for operators with large core matrix elements, so they are
+  // subtracted from each term: the result does not rely on their
+  // cancellation.
+  //
+  // If h joins a to itself, the first two terms each contain a part with
+  // P^a h P^a that has the factor 1/omega; only their sum is regular (see
+  // dPi_b). The two are replaced by the single term
+  //   -[P^a h P^a]_ij [G^e(e_a - e) G^e(e_a - e + omega)]_j2
+
+  if (m_screen_Coulomb && !has_qpiq()) {
+    form_qpiq(m_ident);
+  }
+
+  // Core polarisation of the external field vertex. dV is solved at
+  // |omega|: for negative omega the field is its conjugate component
+  const auto conj = omega < 0.0;
+  const auto dV_kappa = dV_matrices(h, dV, conj);
+
+  const GMatrix zero(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  constexpr std::complex<double> I{0.0, 1.0};
+  const auto num_kappas = m_max_ki + 1;
+  const auto num_core = m_core_index.size();
+  const auto &core = m_HF->core();
+  const auto K = h.rank();
+
+  // Partial waves that have (polarised) core states
+  std::vector<std::size_t> core_kappa_indices;
+  for (auto ik = 0ul; ik < num_kappas; ++ik) {
+    for (const auto ia : m_core_index) {
+      if (core[ia].k_index() == ik) {
+        core_kappa_indices.push_back(ik);
+        break;
+      }
+    }
+  }
+
+  // BLAS must run single-threaded inside the omp regions below
+  const qip::SingleThreadBlas single_thread_blas{};
+
+  // First two terms: the perturbed line is a product of the core state and
+  // a perturbed core state, which does not depend on the integration energy:
+  //   [G(e_a + omega) h P^a]_ij = X_a(r_i) F_a(r_j),
+  //   [P^a h G(e_a - omega)]_ij = F_a(r_i) Y_a(r_j),
+  // one for each partial wave. X_core, Y_core are their core parts (from
+  // G^c; a itself is left out)
+  LinAlg::Matrix<std::optional<DiracSpinor>> X_a(num_core, num_kappas);
+  LinAlg::Matrix<std::optional<DiracSpinor>> Y_a(num_core, num_kappas);
+  LinAlg::Matrix<std::optional<DiracSpinor>> X_core(num_core, num_kappas);
+  LinAlg::Matrix<std::optional<DiracSpinor>> Y_core(num_core, num_kappas);
+  // <a||h||a>, for the term with P^a h P^a
+  std::vector<double> h_aa(num_core, 0.0);
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (auto ic = 0ul; ic < num_core; ++ic) {
+    for (auto ik = 0ul; ik < num_kappas; ++ik) {
+      const auto &Fa = core[m_core_index[ic]];
+      const auto en_a = std::complex<double>{Fa.en()};
+      const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
+      const auto kappa = Angular::kindex_to_kappa(ik);
+
+      if (!h.isZero(kappa, Fa.kappa())) {
+        auto h_Fa = h.reduced_rhs(kappa, Fa);
+        if (dV != nullptr) {
+          h_Fa += dV->dV_rhs(kappa, Fa, conj);
+        }
+        auto X = green_excited(kappa, en_a + omega, Fa_hp).real().drj() * h_Fa;
+        for (const auto ib : m_core_index) {
+          const auto &Fb = core[ib];
+          if (Fb.kappa() != kappa || Fb == Fa)
+            continue;
+          const auto h_ba =
+            h.reducedME(Fb, Fa) + (dV != nullptr ? dV->dV(Fb, Fa, conj) : 0.0);
+          const auto X_b = (h_ba / (Fa.en() + omega - Fb.en())) * Fb;
+          X_core(ic, ik) = X_core(ic, ik) ? *X_core(ic, ik) + X_b : X_b;
+        }
+        X_a(ic, ik) = X_core(ic, ik) ? X + *X_core(ic, ik) : X;
+      }
+
+      if (!h.isZero(Fa.kappa(), kappa)) {
+        // F_a (h + dV), as a function of the right-hand coordinate
+        auto Fa_h = h.reduced_lhs(kappa, Fa);
+        if (dV != nullptr) {
+          const auto symm_sign = h.symm_sign(Fa, DiracSpinor(0, kappa, m_grid));
+          Fa_h += double(symm_sign) * dV->dV_rhs(kappa, Fa, !conj);
+        }
+        auto Y = green_excited(kappa, en_a - omega, Fa_hp).real().drj() * Fa_h;
+        for (const auto ib : m_core_index) {
+          const auto &Fb = core[ib];
+          if (Fb.kappa() != kappa || Fb == Fa)
+            continue;
+          const auto h_ab =
+            h.reducedME(Fa, Fb) + (dV != nullptr ? dV->dV(Fa, Fb, conj) : 0.0);
+          const auto Y_b = (h_ab / (Fa.en() - omega - Fb.en())) * Fb;
+          Y_core(ic, ik) = Y_core(ic, ik) ? *Y_core(ic, ik) + Y_b : Y_b;
+        }
+        Y_a(ic, ik) = Y_core(ic, ik) ? Y + *Y_core(ic, ik) : Y;
+      }
+    }
+  }
+  for (auto ic = 0ul; ic < num_core; ++ic) {
+    const auto &Fa = core[m_core_index[ic]];
+    if (h.isZero(Fa.kappa(), Fa.kappa()))
+      continue;
+    h_aa[ic] = h.reducedME(Fa, Fa);
+    if (dV != nullptr) {
+      h_aa[ic] += dV->dV(Fa, Fa, conj);
+    }
+  }
+
+  // The integrand falls as u^-2 (the direct diagrams as u^-3): the u^-3
+  // tail correction of the frequency grid becomes u_max F(u_max)
+  auto weights = m_wgrid_weights;
+  weights.back() += 0.5 * m_wgrid_points.back();
+
+  const auto num_threads = std::size_t(omp_get_max_threads());
+  std::vector<GMatrix> dSigma_ts(num_threads, zero);
+
+#pragma omp parallel for
+  for (auto ie = 0ul; ie < m_wgrid_points.size(); ie++) {
+
+    auto &dSigma_t = dSigma_ts[std::size_t(omp_get_thread_num())];
+
+    // Integration energy, along the imaginary axis
+    const auto epsilon = std::complex{m_omre, m_wgrid_points[ie]};
+    const auto d_epsilon = I * weights[ie];
+    // With the factor of i from dGamma
+    const auto i_d_epsilon = I * d_epsilon;
+
+    // Green's function of the line next to w, each partial wave
+    std::vector<ComplexGMatrix> G_beta;
+    G_beta.reserve(num_kappas);
+    for (auto ik = 0ul; ik < num_kappas; ++ik) {
+      const auto kappa = Angular::kindex_to_kappa(ik);
+      G_beta.push_back(green(kappa, en_v + epsilon));
+    }
+
+    for (auto ic = 0ul; ic < num_core; ++ic) {
+      const auto &Fa = core[m_core_index[ic]];
+      const auto kappa_a = Fa.kappa();
+      const auto en_a = std::complex<double>{Fa.en()};
+      // Hole-particle: the excited electron feels the hole in a
+      const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
+
+      const auto en_plus = en_a + epsilon;
+      const auto en_plus_omega = en_a + epsilon - omega;
+      const auto en_minus = en_a - epsilon;
+      const auto en_minus_omega = en_a - epsilon + omega;
+
+      // Loop Green's functions, G = G^e + G^c, for each partial wave
+      std::vector<ComplexGMatrix> G_plus, G_plus_omega, G_minus, G_minus_omega;
+      for (auto ik = 0ul; ik < num_kappas; ++ik) {
+        const auto kappa = Angular::kindex_to_kappa(ik);
+        G_plus.push_back(green_loop(kappa, en_plus, Fa_hp));
+        G_plus_omega.push_back(green_loop(kappa, en_plus_omega, Fa_hp));
+        G_minus.push_back(green_loop(kappa, en_minus, Fa_hp));
+        G_minus_omega.push_back(green_loop(kappa, en_minus_omega, Fa_hp));
+      }
+
+      // The line j to 2 with F_a(r_j) attached, for the second term:
+      // F_a G(e_a - e + omega), and its core part (to subtract)
+      std::vector<std::vector<ComplexRMatrix>> Fa_G(num_kappas);
+      std::vector<std::vector<ComplexRMatrix>> Fa_G_core(num_kappas);
+      for (auto ik = 0ul; ik < num_kappas; ++ik) {
+        Fa_G[ik] = spinor_times_greens(Fa, G_minus_omega[ik]);
+      }
+      for (const auto ik : core_kappa_indices) {
+        const auto kappa = Angular::kindex_to_kappa(ik);
+        Fa_G_core[ik] =
+          spinor_times_greens(Fa, green_loop_core(kappa, en_minus_omega));
+      }
+
+      for (auto ik = 0ul; ik < num_kappas; ++ik) {
+        const auto kappa = Angular::kindex_to_kappa(ik);
+
+        // [P^a h G(e_a - omega)]_ij G_j2(e_a - e), less its part with three
+        // core lines
+        if (Y_a(ic, ik)) {
+          std::vector<std::vector<ComplexRMatrix>> Y_G(num_kappas);
+          for (auto i_delta = 0ul; i_delta < num_kappas; ++i_delta) {
+            Y_G[i_delta] = spinor_times_greens(*Y_a(ic, ik), G_minus[i_delta]);
+          }
+          if (Y_core(ic, ik)) {
+            for (const auto i_delta : core_kappa_indices) {
+              const auto Y_G_core = spinor_times_greens(
+                *Y_core(ic, ik),
+                green_loop_core(Angular::kindex_to_kappa(i_delta), en_minus));
+              for (auto nu = 0ul; nu < Y_G_core.size(); ++nu) {
+                Y_G[i_delta][nu] -= Y_G_core[nu];
+              }
+            }
+          }
+          // -[P^a h P^a]_ij [G^e(e_a - e) G^e(e_a - e + omega)]_j2
+          if (kappa == kappa_a) {
+            for (auto i_delta = 0ul; i_delta < num_kappas; ++i_delta) {
+              const auto kappa_delta = Angular::kindex_to_kappa(i_delta);
+              const auto G_excited_1 =
+                G_minus[i_delta] - green_loop_core(kappa_delta, en_minus);
+              const auto G_excited_2 =
+                G_minus_omega[i_delta] -
+                green_loop_core(kappa_delta, en_minus_omega);
+              const auto Fa_GG =
+                spinor_times_greens(Fa, G_excited_1.drj() * G_excited_2);
+              for (auto nu = 0ul; nu < Fa_GG.size(); ++nu) {
+                Y_G[i_delta][nu] -= std::complex<double>{h_aa[ic]} * Fa_GG[nu];
+              }
+            }
+          }
+          dSigma_t +=
+            dSigma_bx_separable_term(K, kappa_w, kappa_v, kappa_a, kappa, Fa,
+                                     Y_G, G_beta, ie, i_d_epsilon);
+        }
+
+        // [G(e_a + omega) h P^a]_ij G_j2(e_a - e + omega), less its part
+        // with three core lines
+        if (X_a(ic, ik)) {
+          dSigma_t += dSigma_bx_separable_term(K, kappa_w, kappa_v, kappa,
+                                               kappa_a, *X_a(ic, ik), Fa_G,
+                                               G_beta, ie, i_d_epsilon);
+          if (X_core(ic, ik)) {
+            dSigma_t -= dSigma_bx_separable_term(
+              K, kappa_w, kappa_v, kappa, kappa_a, *X_core(ic, ik), Fa_G_core,
+              G_beta, ie, i_d_epsilon);
+          }
+        }
+      }
+
+      // [G(e_a + e) h G(e_a + e - omega)]_ij P^a_j2, less its part with
+      // three core lines
+      LinAlg::Matrix<std::optional<ComplexGMatrix>> dG(num_kappas, num_kappas);
+      for (auto i_gamma_i = 0ul; i_gamma_i < num_kappas; ++i_gamma_i) {
+        const auto kappa_gamma_i = Angular::kindex_to_kappa(i_gamma_i);
+        for (auto i_gamma_j = 0ul; i_gamma_j < num_kappas; ++i_gamma_j) {
+          const auto kappa_gamma_j = Angular::kindex_to_kappa(i_gamma_j);
+          if (h.isZero(kappa_gamma_i, kappa_gamma_j))
+            continue;
+          dG(i_gamma_i, i_gamma_j) = perturbed_greens(
+            h, kappa_gamma_i, kappa_gamma_j, G_plus[i_gamma_i],
+            G_plus_omega[i_gamma_j], dV_kappa(i_gamma_i, i_gamma_j));
+        }
+      }
+      for (const auto i_gamma_i : core_kappa_indices) {
+        const auto kappa_gamma_i = Angular::kindex_to_kappa(i_gamma_i);
+        for (const auto i_gamma_j : core_kappa_indices) {
+          const auto kappa_gamma_j = Angular::kindex_to_kappa(i_gamma_j);
+          if (h.isZero(kappa_gamma_i, kappa_gamma_j))
+            continue;
+          *dG(i_gamma_i, i_gamma_j) -=
+            perturbed_greens(h, kappa_gamma_i, kappa_gamma_j,
+                             green_loop_core(kappa_gamma_i, en_plus),
+                             green_loop_core(kappa_gamma_j, en_plus_omega),
+                             dV_kappa(i_gamma_i, i_gamma_j));
+        }
+      }
+      dSigma_t += dSigma_bx_core_term(K, kappa_w, kappa_v, Fa, dG, G_beta, ie,
+                                      i_d_epsilon);
+    }
+  }
+
+  GMatrix dSigma_bx = zero;
+  for (auto i = 0ul; i < num_threads; ++i) {
+    dSigma_bx += dSigma_ts[i];
+  }
+
+  // -1/pi = -(1/2pi)*2; minus sign of the exchange diagram, and 2 from the
+  // symmetric +/- Im(e) contour halves (integrand at -Im(e) is conjugate of
+  // that at +Im(e), and we take Re part)
+  dSigma_bx *= (-1.0 / M_PI);
+
+  return dSigma_bx;
+}
+
+//==============================================================================
 // E1 operator only
 //==============================================================================
 

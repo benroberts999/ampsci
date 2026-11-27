@@ -128,9 +128,9 @@ TEST_CASE("FeynSR: core polarisation in perturbed Greens function",
 
 //==============================================================================
 TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
-  // Structure radiation diagrams (a), (b), (c), (a_x) and (c_x), with core
-  // polarisation of the external field, against the same diagrams from a
-  // sum over a B-spline basis.
+  // Structure radiation diagrams (a), (b), (c), (a_x), (b_x) and (c_x), with
+  // core polarisation of the external field, against the same diagrams from
+  // a sum over a B-spline basis.
   // Small sub-grid and basis: tests the method, not high accuracy
 
   // Li: Hartree-Fock core, with 2s and 2p valence states, and basis
@@ -200,11 +200,15 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
     const auto c_Feynman = *Fw * (dSigma_c * *Fv);
     const auto ax_Feynman = *Fw * (dSigma_ax * *Fv);
     const auto cx_Feynman = *Fw * (dSigma_cx * *Fv);
+    const auto dSigma_bx =
+      Fy.dSigma_bx(h, Fw->kappa(), Fv->kappa(), Fv->en(), omega, dV.get());
+    const auto bx_Feynman = *Fw * (dSigma_bx * *Fv);
 
     const auto eps_a = std::abs(a_Feynman / a - 1.0);
     const auto eps_b = std::abs(b_Feynman / b - 1.0);
     const auto eps_c = std::abs(c_Feynman / c - 1.0);
     const auto eps_ax = std::abs(ax_Feynman / ax - 1.0);
+    const auto eps_bx = std::abs(bx_Feynman / bx - 1.0);
     const auto eps_cx = std::abs(cx_Feynman / cx - 1.0);
 
     fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n",
@@ -215,6 +219,8 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
                c, c_Feynman, eps_c);
     fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "ax",
                ax, ax_Feynman, eps_ax);
+    fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "bx",
+               bx, bx_Feynman, eps_bx);
     fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "cx",
                cx, cx_Feynman, eps_cx);
 
@@ -222,6 +228,8 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
     REQUIRE(eps_b < 0.01);
     REQUIRE(eps_c < 0.01);
     REQUIRE(eps_ax < 0.01);
+    // (b_x) converges more slowly with the sub-grid
+    REQUIRE(eps_bx < 0.05);
     REQUIRE(eps_cx < 0.01);
   }
 }

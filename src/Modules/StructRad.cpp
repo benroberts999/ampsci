@@ -115,7 +115,6 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const int n_digits = 3;
   const auto width = n_digits + 7;
 
-  // (b_x) is not calculated: its column is left blank
   std::cout << "\n";
   fmt::print("{:5s} {:5s}", "w", "v");
   for (const auto label : {"a", "b", "c", "ax", "bx", "cx", "total"}) {
@@ -159,9 +158,13 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto ax = w * (dSigma_ax * v);
       const auto cx = w * (dSigma_cx * v);
       print_value(ax);
-      fmt::print(" {:>{}s}", "", width);
+
+      const auto bx =
+        w *
+        (Fyn.dSigma_bx(*h, w.kappa(), v.kappa(), v.en(), omega, rpa.get()) * v);
+      print_value(bx);
       print_value(cx);
-      total += ax + cx;
+      total += ax + bx + cx;
 
       print_value(total);
       fmt::print("\n");
