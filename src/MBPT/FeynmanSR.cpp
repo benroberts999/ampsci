@@ -1,6 +1,7 @@
 #include "MBPT/FeynmanSR.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/CorePolarisation.hpp"
 #include "MBPT/Feynman.hpp"
 #include "MBPT/RadialMatrix.hpp"
 #include "MBPT/SpinorMatrix.hpp"
@@ -147,7 +148,11 @@ GMatrix FeynmanSR::Sigma_SR_direct(int kv, double env, int kw, double Omega) {
 ComplexGMatrix
 FeynmanSR::perturbed_greens(const DiracOperator::TensorOperator &h, int kappa_A,
                             int kappa_B, const ComplexGMatrix &gA,
-                            const ComplexGMatrix &gB) const {
+                            const ComplexGMatrix &gB,
+                            const std::optional<ComplexGMatrix> &dV_AB) const {
+
+  // gA * <A||h + dV||B> * gB: angular factor of h times its radial part
+  // (local in r), plus the core polarisation matrix (non-local), if given
 
   // Radial part of the operator between partial waves A and B, t^{mu nu}(r):
   // its action on unit spinors, (1, 0) and (0, 1). Valid for any operator
@@ -157,8 +162,9 @@ FeynmanSR::perturbed_greens(const DiracOperator::TensorOperator &h, int kappa_A,
   std::fill(unit_f.f().begin(), unit_f.f().end(), 1.0);
   std::fill(unit_g.g().begin(), unit_g.g().end(), 1.0);
   // t_f = (t^ff, t^gf), t_g = (t^fg, t^gg)
-  const auto t_f = h.radial_rhs(kappa_A, unit_f);
-  const auto t_g = h.radial_rhs(kappa_A, unit_g);
+  const auto h_AB = h.angularF(kappa_A, kappa_B);
+  const auto t_f = h_AB * h.radial_rhs(kappa_A, unit_f);
+  const auto t_g = h_AB * h.radial_rhs(kappa_A, unit_g);
 
   // t*gB, with the integration measure: (t gB)^{mu nu}_ij =
   // dr_i * sum_lambda t^{mu lambda}(r_i) * gB^{lambda nu}_ij
@@ -181,13 +187,63 @@ FeynmanSR::perturbed_greens(const DiracOperator::TensorOperator &h, int kappa_A,
     }
   }
 
+  if (dV_AB) {
+    t_gB += (*dV_AB) * gB;
+  }
+
   return gA * t_gB;
 }
 
 //==============================================================================
 
+LinAlg::Matrix<std::optional<ComplexGMatrix>>
+FeynmanSR::dV_matrices(const DiracOperator::TensorOperator &h,
+                       const ExternalField::CorePolarisation *dV) {
+
+  // dV_AB(r1,r2) = sum_n [dV*F_n]_A(r1) F_n^dag(r2), with n a complete set
+  // of states of partial wave B, and [..]_A the projection onto partial
+  // wave A: the reduced matrix element is <a||dV||b> = F_a * (dV_AB * F_b)
+
+  const auto num_kappas = m_max_ki + 1;
+  LinAlg::Matrix<std::optional<ComplexGMatrix>> dV_kappa(num_kappas,
+                                                         num_kappas);
+  if (dV == nullptr)
+    return dV_kappa;
+
+  // The complete set of states is the same for every operator: formed once
+  if (m_coordinate_basis.empty()) {
+    m_coordinate_basis = coordinate_basis();
+  }
+
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (auto i_A = 0ul; i_A < num_kappas; ++i_A) {
+    for (auto i_B = 0ul; i_B < num_kappas; ++i_B) {
+      const auto kappa_A = Angular::kindex_to_kappa(i_A);
+      const auto kappa_B = Angular::kindex_to_kappa(i_B);
+      if (h.isZero(kappa_A, kappa_B))
+        continue;
+
+      GMatrix dV_AB(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+      for (const auto &Fn : m_coordinate_basis) {
+        if (Fn.kappa() != kappa_B)
+          continue;
+        dV_AB.add(dV->dV_rhs(kappa_A, Fn), Fn, 1.0);
+      }
+      // includes both integration measures
+      dV_AB.dri_in_place();
+      dV_AB.drj_in_place();
+      dV_kappa(i_A, i_B) = dV_AB.complex();
+    }
+  }
+
+  return dV_kappa;
+}
+
+//==============================================================================
+
 GMatrix FeynmanSR::dSigma_a(const DiracOperator::TensorOperator &h, int kappa_w,
-                            int kappa_v, double en_v, double omega) {
+                            int kappa_v, double en_v, double omega,
+                            const ExternalField::CorePolarisation *dV) {
 
   // dSigma^(a)_12(e_v) = int de/2pi dG_12(e_v + e) Q_1i Pi_ij(e) Q_j2,
   // dG_12(e) = G_1i(e + omega) h_i G_i2(e)
@@ -195,6 +251,9 @@ GMatrix FeynmanSR::dSigma_a(const DiracOperator::TensorOperator &h, int kappa_w,
   if (!has_qpiq()) {
     form_qpiq(m_ident);
   }
+
+  // Core polarisation of the external field vertex
+  const auto dV_kappa = dV_matrices(h, dV);
 
   const GMatrix zero(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
 
@@ -234,9 +293,6 @@ GMatrix FeynmanSR::dSigma_a(const DiracOperator::TensorOperator &h, int kappa_w,
 
         if (h.isZero(kappa_alpha, kappa_beta))
           continue;
-        const auto h_alpha_beta = h.angularF(kappa_alpha, kappa_beta);
-        if (h_alpha_beta == 0.0)
-          continue;
 
         // Q*Pi*Q, summed over multipolarity k with the angular factors
         ComplexRMatrix qpiq(m_i0, m_stride, m_subgrid_points, m_grid);
@@ -253,16 +309,16 @@ GMatrix FeynmanSR::dSigma_a(const DiracOperator::TensorOperator &h, int kappa_w,
           if (L == 0.0)
             continue;
 
-          const std::complex<double> c_ang{
-            L * h_alpha_beta * ck_w_alpha * ck_beta_v, 0.0};
+          const std::complex<double> c_ang{L * ck_w_alpha * ck_beta_v, 0.0};
           qpiq += c_ang * m_qpiq_wk[ie][k];
           non_zero = true;
         }
         if (!non_zero)
           continue;
 
-        const auto dG = perturbed_greens(h, kappa_alpha, kappa_beta,
-                                         G_alpha[i_alpha], G_beta[i_beta]);
+        const auto dG =
+          perturbed_greens(h, kappa_alpha, kappa_beta, G_alpha[i_alpha],
+                           G_beta[i_beta], dV_kappa(i_alpha, i_beta));
 
         dSigma_t += (d_epsilon * mult_elements(dG, qpiq)).real();
       }
@@ -355,9 +411,10 @@ double L_ang_dSigma_bc(int K, int kappa_w, int kappa_v, int kappa_alpha, int k,
 
 //==============================================================================
 
-LinAlg::Matrix<ComplexRMatrix>
-FeynmanSR::dPi_b(const DiracOperator::TensorOperator &h,
-                 std::complex<double> epsilon, double omega) const {
+LinAlg::Matrix<ComplexRMatrix> FeynmanSR::dPi_b(
+  const DiracOperator::TensorOperator &h, std::complex<double> epsilon,
+  double omega,
+  const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dV_kappa) const {
 
   // dPi^(b)_12(e) = Tr int de'/2pi dG_21(e' + e) G_12(e' + omega)
   //
@@ -377,17 +434,16 @@ FeynmanSR::dPi_b(const DiracOperator::TensorOperator &h,
     num_ks, num_ks, ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
 
   // Adds one term, Tr[ A_12 (B h C)_21 ], to each dPi^{kl}, with its
-  // angular factor. BhC = B*t*C (radial part of h only)
+  // angular factor. BhC = B*<B||h||C>*C (see perturbed_greens)
   const auto add_term = [&](int kappa_A, int kappa_B, int kappa_C,
                             const ComplexGMatrix &A,
                             const ComplexGMatrix &BhC) {
-    const auto h_BC = h.angularF(kappa_B, kappa_C);
     std::vector<std::tuple<std::size_t, std::size_t, double>> kl_coefficients;
     for (auto k = 0ul; k < num_ks; ++k) {
       for (auto l = 0ul; l < num_ks; ++l) {
         const auto L = L_ang_dPi(K, int(k), int(l), kappa_A, kappa_B, kappa_C);
         if (L != 0.0) {
-          kl_coefficients.emplace_back(k, l, h_BC * L);
+          kl_coefficients.emplace_back(k, l, L);
         }
       }
     }
@@ -404,6 +460,7 @@ FeynmanSR::dPi_b(const DiracOperator::TensorOperator &h,
     const auto &Fa = core[ia];
     const auto kappa_a = Fa.kappa();
     const auto en_a = std::complex<double>{Fa.en()};
+    const auto i_a = std::size_t(Fa.k_index());
     const auto &Pa = m_pa[ia];
     // Hole-particle: the excited electron feels the hole in a
     const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
@@ -425,8 +482,9 @@ FeynmanSR::dPi_b(const DiracOperator::TensorOperator &h,
         const auto kappa_gamma = Angular::kindex_to_kappa(i_gamma);
         if (h.isZero(kappa_beta, kappa_gamma))
           continue;
-        const auto GhG = perturbed_greens(
-          h, kappa_beta, kappa_gamma, G_plus[i_beta], G_plus_omega[i_gamma]);
+        const auto GhG =
+          perturbed_greens(h, kappa_beta, kappa_gamma, G_plus[i_beta],
+                           G_plus_omega[i_gamma], dV_kappa(i_beta, i_gamma));
         add_term(kappa_a, kappa_beta, kappa_gamma, Pa, GhG);
       }
     }
@@ -436,9 +494,9 @@ FeynmanSR::dPi_b(const DiracOperator::TensorOperator &h,
 
       // G_12(e_a - e) [P^a h G(e_a - omega)]_21
       if (!h.isZero(kappa_a, kappa_gamma)) {
-        const auto PhG =
-          perturbed_greens(h, kappa_a, kappa_gamma, Pa,
-                           green_loop(kappa_gamma, en_a - omega, Fa_hp));
+        const auto PhG = perturbed_greens(
+          h, kappa_a, kappa_gamma, Pa,
+          green_loop(kappa_gamma, en_a - omega, Fa_hp), dV_kappa(i_a, i_gamma));
         for (auto i_beta = 0ul; i_beta < num_kappas; ++i_beta) {
           const auto kappa_beta = Angular::kindex_to_kappa(i_beta);
           add_term(kappa_beta, kappa_a, kappa_gamma, G_minus[i_beta], PhG);
@@ -447,9 +505,9 @@ FeynmanSR::dPi_b(const DiracOperator::TensorOperator &h,
 
       // G_12(e_a + omega - e) [G(e_a + omega) h P^a]_21
       if (!h.isZero(kappa_gamma, kappa_a)) {
-        const auto GhP =
-          perturbed_greens(h, kappa_gamma, kappa_a,
-                           green_loop(kappa_gamma, en_a + omega, Fa_hp), Pa);
+        const auto GhP = perturbed_greens(
+          h, kappa_gamma, kappa_a, green_loop(kappa_gamma, en_a + omega, Fa_hp),
+          Pa, dV_kappa(i_gamma, i_a));
         for (auto i_beta = 0ul; i_beta < num_kappas; ++i_beta) {
           const auto kappa_beta = Angular::kindex_to_kappa(i_beta);
           add_term(kappa_beta, kappa_gamma, kappa_a, G_minus_omega[i_beta],
@@ -470,7 +528,8 @@ FeynmanSR::dPi_b(const DiracOperator::TensorOperator &h,
 
 GMatrix FeynmanSR::dSigma_bc(const DiracOperator::TensorOperator &h,
                              int kappa_w, int kappa_v, double en_v,
-                             double omega) {
+                             double omega,
+                             const ExternalField::CorePolarisation *dV) {
 
   // dSigma^(b+c)_12(e_v) = int de/2pi G_12(e_v + e) Q_1i dPi_ij(e) Q_j2,
   // dPi = dPi^(b) + dPi^(c), with dPi^(c)_12(e) = dPi^(b)_21(omega - e)
@@ -482,6 +541,9 @@ GMatrix FeynmanSR::dSigma_bc(const DiracOperator::TensorOperator &h,
   if (m_screen_Coulomb && !has_qpiq()) {
     form_qpiq(m_ident);
   }
+
+  // Core polarisation of the external field vertex
+  const auto dV_kappa = dV_matrices(h, dV);
 
   const GMatrix zero(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
 
@@ -505,8 +567,8 @@ GMatrix FeynmanSR::dSigma_bc(const DiracOperator::TensorOperator &h,
     const auto d_epsilon = I * m_wgrid_weights[ie];
 
     // dPi^(b)(e), and dPi^(b)(omega - e) for dPi^(c)
-    const auto dPi_b_kl = dPi_b(h, epsilon, omega);
-    const auto dPi_b_swapped_kl = dPi_b(h, omega - epsilon, omega);
+    const auto dPi_b_kl = dPi_b(h, epsilon, omega, dV_kappa);
+    const auto dPi_b_swapped_kl = dPi_b(h, omega - epsilon, omega, dV_kappa);
 
     // Valence line, each partial wave
     std::vector<ComplexGMatrix> G_alpha;
@@ -590,7 +652,8 @@ double L_ang_dSigma_ax(int kappa_v, int kappa_beta, int kappa_gamma,
 
 GMatrix FeynmanSR::dSigma_ax(const DiracOperator::TensorOperator &h,
                              int kappa_w, int kappa_v, double en_v,
-                             double omega) {
+                             double omega,
+                             const ExternalField::CorePolarisation *dV) {
 
   // dSigma^(ax)_12(e_v) = -int de/2pi dG_1i(e_v + e) Q_1j Gamma_ij2(e) Q_i2,
   // Gamma_ij2(e) = i sum_a [ P^a_ij G^e_j2(e_a - e) + G^e_ij(e_a + e) P^a_j2 ]
@@ -608,6 +671,9 @@ GMatrix FeynmanSR::dSigma_ax(const DiracOperator::TensorOperator &h,
   if (m_screen_Coulomb && !has_qpiq()) {
     form_qpiq(m_ident);
   }
+
+  // Core polarisation of the external field vertex
+  const auto dV_kappa = dV_matrices(h, dV);
 
   const GMatrix zero(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
   const ComplexRMatrix radial_zero(m_i0, m_stride, m_subgrid_points, m_grid);
@@ -659,7 +725,6 @@ GMatrix FeynmanSR::dSigma_ax(const DiracOperator::TensorOperator &h,
 
           if (h.isZero(kappa_alpha, kappa_beta))
             continue;
-          const auto h_alpha_beta = h.angularF(kappa_alpha, kappa_beta);
 
           // Formed when first needed: most k vanish by selection rules
           std::optional<ComplexGMatrix> dG;
@@ -668,13 +733,13 @@ GMatrix FeynmanSR::dSigma_ax(const DiracOperator::TensorOperator &h,
               Angular::Ck_kk(int(k), kappa_w, kappa_alpha);
             const auto L =
               L_ang_dSR(K, kappa_w, kappa_v, kappa_beta, kappa_alpha, int(k));
-            const std::complex<double> c_ang{L * h_alpha_beta * ck_w_alpha,
-                                             0.0};
+            const std::complex<double> c_ang{L * ck_w_alpha, 0.0};
             if (c_ang == 0.0)
               continue;
             if (!dG) {
-              dG = perturbed_greens(h, kappa_alpha, kappa_beta,
-                                    G_alpha[i_alpha], G_beta[i_beta]);
+              dG =
+                perturbed_greens(h, kappa_alpha, kappa_beta, G_alpha[i_alpha],
+                                 G_beta[i_beta], dV_kappa(i_alpha, i_beta));
             }
             auto &dG_k = dG_beta_k(i_beta, k);
             if (dG_k) {

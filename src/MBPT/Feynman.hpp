@@ -641,6 +641,10 @@ protected:
   void form_qk();
   // Forms core projection operators
   void form_pa();
+  // Complete set of states (hydrogen-like B-splines) for each partial wave:
+  // used to write non-local operators as matrices on the sub-grid,
+  // V(r1,r2) = sum_n [V*F_n](r1) F_n^dag(r2)
+  std::vector<DiracSpinor> coordinate_basis() const;
   // Forms HF exchange potential matrix
   void form_vx();
   // Sets up the frequency quadrature (points + weights) along Im(w):

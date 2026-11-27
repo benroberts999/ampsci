@@ -1,5 +1,6 @@
 #include "Modules/StructRad.hpp"
 #include "DiracOperator/GenerateOperator.hpp"
+#include "ExternalField/CorePolarisation.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/FeynmanSR.hpp"
@@ -8,6 +9,7 @@
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <optional>
@@ -25,10 +27,13 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({
     {"operator", "e.g., E1, hfs [E1]"},
     {"options{}", "options specific to operator; blank by dflt"},
-    {"stride", "stride [8]"},
-    {"n_min_core", "Minimum core state [5]"},
-    {"rmax", "Maximum r value [30]"},
-    {"r0", "Minimum r value, [1e-3]"},
+    {"rpa", "RPA for the internal operator line: true(=TDHF), false, TDHF, "
+            "basis, diagram [false]"},
+    {"rpa_omega", "Frequency the RPA is solved at [0.0]"},
+    {"stride", "stride [such that ~150 points between r0 and rmax]"},
+    {"n_min_core", "Minimum core state [1]"},
+    {"rmax", "Maximum r value [40]"},
+    {"r0", "Minimum r value, [1e-4]"},
     {"includeG", "include lower g component [false]"},
     {"exchange", "include the exchange diagrams [false]"},
     {"screening", "Coulomb screening [false]"},
@@ -46,12 +51,24 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
     input.getBlock("options").value_or(IO::InputBlock(oper, {}));
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  auto r0 = input.get("r0", 1e-3);
-  auto rmax = input.get("rmax", 90.0);
+  // Core polarisation of the external field, solved once at a fixed frequency
+  const auto rpa_method = input.get<std::string>("rpa", "false");
+  const auto rpa_omega = input.get("rpa_omega", 0.0);
+  const auto rpa = ExternalField::make_rpa(rpa_method, h.get(), wf.vHF(), true,
+                                           wf.basis(), wf.identity());
+  if (rpa) {
+    rpa->solve_core(rpa_omega);
+  }
+
+  auto r0 = input.get("r0", 1e-4);
+  auto rmax = input.get("rmax", 40.0);
   const auto i0 = wf.grid().getIndex(r0);
   const auto imax = wf.grid().getIndex(rmax);
-  const std::size_t stride = input.get("stride", 8ul);
-  const auto n_min_core = input.get("n_min_core", 5);
+  // By default, choose stride such that there are ~150 points between r0
+  // and rmax
+  const auto default_stride = std::max((imax - i0) / 150, 1ul);
+  const std::size_t stride = input.get("stride", default_stride);
+  const auto n_min_core = input.get("n_min_core", 1);
   const bool includeG = input.get("includeG", false);
   const bool exchange = input.get("exchange", false);
   // Sub-grid as for the Correlations Feynman (so Q*Pi*Q cache can be shared)
@@ -116,14 +133,17 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto omega = w.en() - v.en();
 
       const auto a =
-        w * (Fyn.dSigma_a(*h, w.kappa(), v.kappa(), v.en(), omega) * v);
+        w *
+        (Fyn.dSigma_a(*h, w.kappa(), v.kappa(), v.en(), omega, rpa.get()) * v);
       const auto bc =
-        w * (Fyn.dSigma_bc(*h, w.kappa(), v.kappa(), v.en(), omega) * v);
+        w *
+        (Fyn.dSigma_bc(*h, w.kappa(), v.kappa(), v.en(), omega, rpa.get()) * v);
       std::vector<double> values{a, bc};
       auto total = a + bc;
       if (exchange) {
-        const auto ax =
-          w * (Fyn.dSigma_ax(*h, w.kappa(), v.kappa(), v.en(), omega) * v);
+        const auto ax = w * (Fyn.dSigma_ax(*h, w.kappa(), v.kappa(), v.en(),
+                                           omega, rpa.get()) *
+                             v);
         values.push_back(ax);
         total += ax;
       }

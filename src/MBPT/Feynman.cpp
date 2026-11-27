@@ -175,11 +175,7 @@ ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
 }
 
 //==============================================================================
-// new test way to form the radial exchange potential coordinate matrix using change of basis formula -- the complete basis that is used is the hydrogenic wave functions
-void Feynman::form_vx() {
-
-  m_Vx_kappa = std::vector<GMatrix>(
-    m_max_ki + 1, {m_i0, m_stride, m_subgrid_points, m_include_G, m_grid});
+std::vector<DiracSpinor> Feynman::coordinate_basis() const {
 
   // Use basic H-like basis to express matrices in coordinate/orbital space
   // initialises the hydrogen wave function object
@@ -201,9 +197,19 @@ void Feynman::form_vx() {
     basis_string, number, order, {r0}, rmax, basis_string,
     SplineBasis::SplineType::Derevianko, false, false));
 
+  return wfH.basis();
+}
+
+//==============================================================================
+// new test way to form the radial exchange potential coordinate matrix using change of basis formula -- the complete basis that is used is the hydrogenic wave functions
+void Feynman::form_vx() {
+
+  m_Vx_kappa = std::vector<GMatrix>(
+    m_max_ki + 1, {m_i0, m_stride, m_subgrid_points, m_include_G, m_grid});
+
   // constructs the exchange matrix as:
   // V(r1,r2) = \sum_n [Vx*F_n](r1) F_n^†(r2)
-  for (const auto &Fn : wfH.basis()) {
+  for (const auto &Fn : coordinate_basis()) {
 
     auto VxFn = m_HF->vexFa(Fn);
     if (m_HF->vBreit()) {

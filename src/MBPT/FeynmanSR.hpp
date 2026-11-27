@@ -4,9 +4,14 @@
 #include "MBPT/RadialMatrix.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include <complex>
+#include <optional>
 
 namespace DiracOperator {
 class TensorOperator;
+}
+
+namespace ExternalField {
+class CorePolarisation;
 }
 
 namespace MBPT {
@@ -84,6 +89,9 @@ public:
     @param en_v     Energy of the initial state
     @param omega    Frequency of the external field,
                     \f$ \varepsilon_w - \varepsilon_v \f$
+    @param dV       Optional: core polarisation (already solved, at the
+                    frequency of the caller's choice). If given, the vertex
+                    is h + dV (see dV_matrices)
 
     @return Matrix on the sub-grid; the reduced matrix element is
     `Fw * (dSigma * Fv)`.
@@ -97,7 +105,8 @@ public:
           hole-particle interaction, and one Coulomb line screened.
   */
   GMatrix dSigma_a(const DiracOperator::TensorOperator &h, int kappa_w,
-                   int kappa_v, double en_v, double omega);
+                   int kappa_v, double en_v, double omega,
+                   const ExternalField::CorePolarisation *dV = nullptr);
 
   //----------------------------------------------------------------------------
   /*!
@@ -133,7 +142,8 @@ public:
           (see Feynman::form_qpiq).
   */
   GMatrix dSigma_bc(const DiracOperator::TensorOperator &h, int kappa_w,
-                    int kappa_v, double en_v, double omega);
+                    int kappa_v, double en_v, double omega,
+                    const ExternalField::CorePolarisation *dV = nullptr);
 
   //----------------------------------------------------------------------------
   /*!
@@ -167,6 +177,8 @@ public:
     @param kappa_v  Kappa of the initial state (on the right)
     @param en_v     Energy of the initial state
     @param omega    Frequency of the external field
+    @param dV       Optional: core polarisation; vertex is then h + dV
+                    (see dSigma_a)
 
     @return dSigma^(ax): reduced matrix element is `Fw * (dSigma * Fv)`.
 
@@ -177,7 +189,8 @@ public:
           (see Feynman::form_qpiq).
   */
   GMatrix dSigma_ax(const DiracOperator::TensorOperator &h, int kappa_w,
-                    int kappa_v, double en_v, double omega);
+                    int kappa_v, double en_v, double omega,
+                    const ExternalField::CorePolarisation *dV = nullptr);
 
   //----------------------------------------------------------------------------
   /*!
@@ -213,6 +226,8 @@ public:
     @param h        External field operator
     @param epsilon  Complex energy
     @param omega    Frequency of the external field
+    @param dV_kappa Core polarisation matrices, from dV_matrices (all
+                    empty for none)
 
     @return \f$ \delta\pi^{(b)}_{kl}(r_1, r_2) \f$, indexed [k][l]: k, l are
     the multipolarities at vertices 1 and 2. No integration measures.
@@ -223,14 +238,15 @@ public:
           h joins two core states the hole changes along the loop, so this
           is approximate there.
   */
-  LinAlg::Matrix<ComplexRMatrix> dPi_b(const DiracOperator::TensorOperator &h,
-                                       std::complex<double> epsilon,
-                                       double omega) const;
+  LinAlg::Matrix<ComplexRMatrix>
+  dPi_b(const DiracOperator::TensorOperator &h, std::complex<double> epsilon,
+        double omega,
+        const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dV_kappa) const;
 
   //----------------------------------------------------------------------------
   /*!
-    @brief Product gA * t * gB, with t the radial part of the external
-    field h: the perturbed Green's function, for gA and gB Green's functions.
+    @brief Product gA * <A||h||B> * gB, for the external field h: the
+    perturbed Green's function, for gA and gB Green's functions.
 
     @details
     t is the radial part of the operator @p h between partial waves A and
@@ -241,13 +257,17 @@ public:
         (g_A)^{\mu\lambda}_{1i}\, t^{\lambda\sigma}(r_i)\, dr_i\,
         (g_B)^{\sigma\nu}_{i2} .
     \f]
-    The angular factor of h (TensorOperator::angularF) is not included.
+    The result is this times the angular factor of h
+    (TensorOperator::angularF). With core polarisation, the non-local
+    \f$ g_A\, \delta V_{AB}\, g_B \f$ is added (see dV_matrices).
 
     @param h        External field operator
     @param kappa_A  Kappa of the partial wave of @p gA
     @param kappa_B  Kappa of the partial wave of @p gB
     @param gA       Matrix to the left of the operator
     @param gB       Matrix to the right of the operator
+    @param dV_AB    Core polarisation matrix between partial waves A and B
+                    (from dV_matrices); empty for none
 
     @warning The operator must be local in r (multiplicative): not valid
              for operators that involve derivatives.
@@ -255,10 +275,39 @@ public:
     @note Without g components, only the ff part of the operator is
           included: zero for operators that only mix f and g.
   */
-  ComplexGMatrix perturbed_greens(const DiracOperator::TensorOperator &h,
-                                  int kappa_A, int kappa_B,
-                                  const ComplexGMatrix &gA,
-                                  const ComplexGMatrix &gB) const;
+  ComplexGMatrix
+  perturbed_greens(const DiracOperator::TensorOperator &h, int kappa_A,
+                   int kappa_B, const ComplexGMatrix &gA,
+                   const ComplexGMatrix &gB,
+                   const std::optional<ComplexGMatrix> &dV_AB = {}) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Core polarisation correction to the external field, dV, as a
+    matrix on the sub-grid for each pair of partial waves.
+
+    @details
+    dV is non-local, so is expanded over a complete set of states n of
+    partial wave B (as for the exchange potential):
+    \f[
+      \delta V_{AB}(r_1, r_2) = \sum_n [\delta V F_n]_A(r_1)\, F_n^\dagger(r_2) ,
+    \f]
+    including both integration measures. The reduced matrix element is
+    \f$ \langle a || \delta V || b \rangle = F_a \cdot (\delta V_{AB} F_b) \f$.
+    Direct and exchange parts of dV are treated together.
+
+    @param h   External field operator (for the selection rules)
+    @param dV  Core polarisation, already solved. The absorption form is
+               used (see class notes). nullptr: all entries empty
+
+    @return Matrices indexed by kappa index, (A, B); empty where h is zero
+            by selection rules.
+
+    @note The complete set of states is formed on the first call, and kept.
+  */
+  LinAlg::Matrix<std::optional<ComplexGMatrix>>
+  dV_matrices(const DiracOperator::TensorOperator &h,
+              const ExternalField::CorePolarisation *dV);
 
   //----------------------------------------------------------------------------
   /*!
@@ -380,6 +429,11 @@ public:
                                            std::complex<double> omega,
                                            double Omega,
                                            bool hole_particle) const;
+
+private:
+  // Complete set of states used to write dV as a matrix (see dV_matrices);
+  // formed when first needed
+  std::vector<DiracSpinor> m_coordinate_basis{};
 };
 
 //==============================================================================
