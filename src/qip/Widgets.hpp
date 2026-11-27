@@ -210,6 +210,8 @@ public:
     @brief Construct progress bar for @p max iterations.
     @param max Total number of iterations (denominator for percentage).
               Accepts any integral type; converted to int internally.
+              If max <= 0 (no iterations), the completed bar is printed at
+              once.
     @param print Runtime switch; if false, class does nothing.
   */
   template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
@@ -247,10 +249,13 @@ private:
       return;
     }
 
-    const bool is_final = (progress == m_max);
+    // progress >= m_max only on construction with m_max <= 0: then complete
+    // (also avoids dividing by zero)
+    const bool is_final = (progress >= m_max);
+    const double fraction = is_final ? 1.0 : double(progress) / double(m_max);
 
     // build bar into stack buffer (char array)
-    const auto current = int(bar_width * double(progress) / double(m_max));
+    const auto current = int(bar_width * fraction);
     char buf[Length + 2];
     char *p = buf;
     *p++ = '[';
@@ -261,7 +266,7 @@ private:
     *p++ = ']';
     *p++ = ' ';
     p += snprintf(p, sizeof(buf) - std::size_t(p - buf) - 1, "%d%%",
-                  int(100.0 * double(progress) / double(m_max)));
+                  int(100.0 * fraction));
     *p++ = is_final ? '\n' : '\r';
     *p = '\0';
 
@@ -287,7 +292,8 @@ private:
   // Prints progress "bar" (comma separated %) (when stdout is NOT a normal tty)
   void print_prog_bar_notty(int progress) {
     const bool is_initial = (progress == 0);
-    const bool is_final = (progress == m_max);
+    // progress >= m_max only on construction with m_max <= 0: then complete
+    const bool is_final = (progress >= m_max);
 
     const int pct =
       is_final ? 100 : int(100.0 * double(progress) / double(m_max));
