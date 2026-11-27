@@ -36,7 +36,10 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
     {"r0", "Minimum r value, [1e-4]"},
     {"includeG", "include lower g component [false]"},
     {"exchange", "include the exchange diagrams [false]"},
-    {"screening", "Coulomb screening [false]"},
+    {"screening", "Include all-orders screening [false]"},
+    {"hole_particle", "Include all-orders hole-particle interaction [false]"},
+    {"both_orders", "Also calculate each pair with w and v swapped "
+                    "(numerical test) [false]"},
   });
 
   // If we are just requesting 'help', don't run module:
@@ -73,11 +76,13 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // Sub-grid as for the Correlations Feynman (so Q*Pi*Q cache can be shared)
   const auto gsize = (imax - i0) / stride + 1;
   const auto screening = input.get("screening", false);
+  const auto hole_particle = input.get("hole_particle", false);
+  const auto both_orders = input.get("both_orders", false);
 
   // Real part of the frequency contour, chosen as for the Correlations
   // Feynman: with hole-particle, the loop poles lie closer to zero
   const auto hp_excitation =
-    screening ?
+    hole_particle ?
       std::optional{MBPT::lowest_hp_excitation(*wf.vHF(), n_min_core)} :
       std::nullopt;
   const auto omre =
@@ -87,6 +92,8 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   options.omre = omre;
   if (screening) {
     options.screening = MBPT::Screening::include;
+  }
+  if (hole_particle) {
     options.hole_particle = MBPT::HoleParticle::include;
   }
 
@@ -99,9 +106,6 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // when every option and the grids match
   auto Fyn = MBPT::FeynmanSR(wf.vHF(), i0, stride, gsize, options, n_min_core,
                              includeG, true, wf.identity());
-
-  std::cout << "Coulomb Screening: " << screening << ", Include G:" << includeG
-            << "\n";
 
   std::cout << "\nStructure radiation, broken up by Feynman diagram: "
             << h->name() << "\n";
@@ -123,8 +127,12 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
     fmt::print(" {:+{}.{}e}", value, width, n_digits);
     std::cout << std::flush;
   };
-  for (const auto &v : wf.valence()) {
-    for (const auto &w : wf.valence()) {
+  const auto &valence = wf.valence();
+  for (std::size_t iv = 0; iv < valence.size(); ++iv) {
+    // Each pair once (w >= v), unless both orders are asked for
+    for (std::size_t iw = both_orders ? 0 : iv; iw < valence.size(); ++iw) {
+      const auto &v = valence[iv];
+      const auto &w = valence[iw];
       if (h->isZero(w.kappa(), v.kappa()))
         continue;
       const auto omega = w.en() - v.en();

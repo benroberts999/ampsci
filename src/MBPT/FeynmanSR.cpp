@@ -11,7 +11,6 @@
 #include <cmath>
 #include <complex>
 #include <optional>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -355,15 +354,25 @@ ComplexRMatrix FeynmanSR::dQ_screening(int k, std::size_t ie) const {
 ComplexGMatrix FeynmanSR::green_loop(int kappa, std::complex<double> en,
                                      const DiracSpinor *Fc_hp) const {
   // G^e + G^c, with G^c over the polarised core states only
-  auto G_loop = green_excited(kappa, en, Fc_hp);
+  return green_excited(kappa, en, Fc_hp) + green_loop_core(kappa, en);
+}
+
+//==============================================================================
+
+ComplexGMatrix FeynmanSR::green_loop_core(int kappa, std::complex<double> en,
+                                          const DiracSpinor *Fc_skip) const {
+  // G^c = sum_a P^a / (en - e_a), over the polarised core states only
+  ComplexGMatrix G_core(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
   const auto &core = m_HF->core();
   for (const auto ia : m_core_index) {
     if (core[ia].kappa() != kappa)
       continue;
+    if (Fc_skip != nullptr && core[ia] == *Fc_skip)
+      continue;
     const auto inv_de = 1.0 / (en - std::complex<double>{core[ia].en()});
-    G_loop += inv_de * m_pa[ia];
+    G_core += inv_de * m_pa[ia];
   }
-  return G_loop;
+  return G_core;
 }
 
 //==============================================================================
@@ -402,6 +411,28 @@ double L_ang_dPi(int K, int k, int l, int kappa_A, int kappa_B, int kappa_C) {
 
 //==============================================================================
 
+void add_dPi_term(LinAlg::Matrix<ComplexRMatrix> *dPi_kl, int K, int kappa_A,
+                  int kappa_B, int kappa_C, const ComplexGMatrix &A,
+                  const ComplexGMatrix &BhC) {
+  // dPi^{kl} += L^{kl} * Tr[ A_12 (B h C)_21 ]
+  // The trace is the same for every k, l: formed when first needed (most
+  // k, l vanish by selection rules)
+  std::optional<ComplexRMatrix> trace;
+  for (auto k = 0ul; k < dPi_kl->rows(); ++k) {
+    for (auto l = 0ul; l < dPi_kl->cols(); ++l) {
+      const auto L = L_ang_dPi(K, int(k), int(l), kappa_A, kappa_B, kappa_C);
+      if (L == 0.0)
+        continue;
+      if (!trace) {
+        trace = trace_product(A, BhC);
+      }
+      (*dPi_kl)[k][l] += std::complex<double>{L} * (*trace);
+    }
+  }
+}
+
+//==============================================================================
+
 double L_ang_dSigma_bc(int K, int kappa_w, int kappa_v, int kappa_alpha, int k,
                        int l) {
   const auto tj_w = Angular::twoj_k(kappa_w);
@@ -427,6 +458,14 @@ LinAlg::Matrix<ComplexRMatrix> FeynmanSR::dPi_b(
   //   P^a_12                  [G(e_a + e) h G(e_a + e - omega)]_21
   //   G_12(e_a - e)           [P^a h G(e_a - omega)]_21
   //   G_12(e_a + omega - e)   [G(e_a + omega) h P^a]_21
+  //
+  // If h joins a to itself, the last two each contain a term with P^a h P^a
+  // (from the core part of the inner Green's function) that has the factor
+  // 1/omega. Only their sum is regular:
+  //   [G(e_a + omega - e) - G(e_a - e)] / omega
+  //     = -G(e_a - e) G(e_a + omega - e)       (operator product),
+  // so the two are replaced by the single term
+  //   -[G(e_a - e) G(e_a + omega - e)]_12   [P^a h P^a]_21
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
@@ -434,28 +473,6 @@ LinAlg::Matrix<ComplexRMatrix> FeynmanSR::dPi_b(
 
   LinAlg::Matrix<ComplexRMatrix> dPi_kl(
     num_ks, num_ks, ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
-
-  // Adds one term, Tr[ A_12 (B h C)_21 ], to each dPi^{kl}, with its
-  // angular factor. BhC = B*<B||h||C>*C (see perturbed_greens)
-  const auto add_term = [&](int kappa_A, int kappa_B, int kappa_C,
-                            const ComplexGMatrix &A,
-                            const ComplexGMatrix &BhC) {
-    std::vector<std::tuple<std::size_t, std::size_t, double>> kl_coefficients;
-    for (auto k = 0ul; k < num_ks; ++k) {
-      for (auto l = 0ul; l < num_ks; ++l) {
-        const auto L = L_ang_dPi(K, int(k), int(l), kappa_A, kappa_B, kappa_C);
-        if (L != 0.0) {
-          kl_coefficients.emplace_back(k, l, L);
-        }
-      }
-    }
-    if (kl_coefficients.empty())
-      return;
-    const auto trace = trace_product(A, BhC);
-    for (const auto &[k, l, coefficient] : kl_coefficients) {
-      dPi_kl[k][l] += std::complex<double>{coefficient} * trace;
-    }
-  };
 
   const auto &core = m_HF->core();
   for (const auto ia : m_core_index) {
@@ -487,7 +504,7 @@ LinAlg::Matrix<ComplexRMatrix> FeynmanSR::dPi_b(
         const auto GhG =
           perturbed_greens(h, kappa_beta, kappa_gamma, G_plus[i_beta],
                            G_plus_omega[i_gamma], dV_kappa(i_beta, i_gamma));
-        add_term(kappa_a, kappa_beta, kappa_gamma, Pa, GhG);
+        add_dPi_term(&dPi_kl, K, kappa_a, kappa_beta, kappa_gamma, Pa, GhG);
       }
     }
 
@@ -495,26 +512,59 @@ LinAlg::Matrix<ComplexRMatrix> FeynmanSR::dPi_b(
       const auto kappa_gamma = Angular::kindex_to_kappa(i_gamma);
 
       // G_12(e_a - e) [P^a h G(e_a - omega)]_21
+      // (a itself is left out of the core part of the inner G)
       if (!h.isZero(kappa_a, kappa_gamma)) {
-        const auto PhG = perturbed_greens(
-          h, kappa_a, kappa_gamma, Pa,
-          green_loop(kappa_gamma, en_a - omega, Fa_hp), dV_kappa(i_a, i_gamma));
+        const auto G_inner = green_excited(kappa_gamma, en_a - omega, Fa_hp) +
+                             green_loop_core(kappa_gamma, en_a - omega, &Fa);
+        const auto PhG = perturbed_greens(h, kappa_a, kappa_gamma, Pa, G_inner,
+                                          dV_kappa(i_a, i_gamma));
         for (auto i_beta = 0ul; i_beta < num_kappas; ++i_beta) {
           const auto kappa_beta = Angular::kindex_to_kappa(i_beta);
-          add_term(kappa_beta, kappa_a, kappa_gamma, G_minus[i_beta], PhG);
+          add_dPi_term(&dPi_kl, K, kappa_beta, kappa_a, kappa_gamma,
+                       G_minus[i_beta], PhG);
         }
       }
 
       // G_12(e_a + omega - e) [G(e_a + omega) h P^a]_21
+      // (a itself is left out of the core part of the inner G)
       if (!h.isZero(kappa_gamma, kappa_a)) {
-        const auto GhP = perturbed_greens(
-          h, kappa_gamma, kappa_a, green_loop(kappa_gamma, en_a + omega, Fa_hp),
-          Pa, dV_kappa(i_gamma, i_a));
+        const auto G_inner = green_excited(kappa_gamma, en_a + omega, Fa_hp) +
+                             green_loop_core(kappa_gamma, en_a + omega, &Fa);
+        const auto GhP = perturbed_greens(h, kappa_gamma, kappa_a, G_inner, Pa,
+                                          dV_kappa(i_gamma, i_a));
         for (auto i_beta = 0ul; i_beta < num_kappas; ++i_beta) {
           const auto kappa_beta = Angular::kindex_to_kappa(i_beta);
-          add_term(kappa_beta, kappa_gamma, kappa_a, G_minus_omega[i_beta],
-                   GhP);
+          add_dPi_term(&dPi_kl, K, kappa_beta, kappa_gamma, kappa_a,
+                       G_minus_omega[i_beta], GhP);
         }
+      }
+    }
+
+    // -[G(e_a - e) G(e_a + omega - e)]_12 [P^a h P^a]_21
+    if (!h.isZero(kappa_a, kappa_a)) {
+      const auto en_1 = en_a - epsilon;
+      const auto en_2 = en_a + omega - epsilon;
+      const auto minus_PhP =
+        std::complex<double>{-1.0} *
+        perturbed_greens(h, kappa_a, kappa_a, Pa, Pa, dV_kappa(i_a, i_a));
+      for (auto i_beta = 0ul; i_beta < num_kappas; ++i_beta) {
+        const auto kappa_beta = Angular::kindex_to_kappa(i_beta);
+        // G G = G^e G^e + G^c G^c (the cross terms are zero). Excited part
+        // by integration; core part exactly, so that the terms with three
+        // core lines still sum to zero
+        const auto G_excited_1 =
+          G_minus[i_beta] - green_loop_core(kappa_beta, en_1);
+        const auto G_excited_2 =
+          G_minus_omega[i_beta] - green_loop_core(kappa_beta, en_2);
+        auto G_product = G_excited_1.drj() * G_excited_2;
+        for (const auto ib : m_core_index) {
+          if (core[ib].kappa() != kappa_beta)
+            continue;
+          const auto en_b = std::complex<double>{core[ib].en()};
+          G_product += (1.0 / ((en_1 - en_b) * (en_2 - en_b))) * m_pa[ib];
+        }
+        add_dPi_term(&dPi_kl, K, kappa_beta, kappa_a, kappa_a, G_product,
+                     minus_PhP);
       }
     }
   }
@@ -902,6 +952,10 @@ FeynmanSR::dSigma_ax_cx(const DiracOperator::TensorOperator &h, int kappa_w,
   const auto dV_kappa = dV_matrices(h, dV, omega < 0.0);
   const auto dV_kappa_mirror = dV_matrices(h, dV, -omega < 0.0);
 
+  // Static field between the same partial waves: the mirror image is (a_x)
+  // itself, so is not calculated
+  const bool mirror_is_ax = (kappa_w == kappa_v && omega == 0.0);
+
   const GMatrix zero(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
 
   constexpr std::complex<double> I{0.0, 1.0};
@@ -941,8 +995,10 @@ FeynmanSR::dSigma_ax_cx(const DiracOperator::TensorOperator &h, int kappa_w,
     const auto dG_ax =
       perturbed_greens_summed(h, kappa_w, kappa_v, G_omega, G_0, dV_kappa);
     // mirror image: G(e_v + e) h G(e_v + e + omega), between v and w
-    const auto dG_mirror = perturbed_greens_summed(h, kappa_v, kappa_w, G_0,
-                                                   G_omega, dV_kappa_mirror);
+    const auto dG_mirror =
+      mirror_is_ax ? std::nullopt :
+                     std::optional{perturbed_greens_summed(
+                       h, kappa_v, kappa_w, G_0, G_omega, dV_kappa_mirror)};
 
     for (const auto ia : m_core_index) {
       const auto &Fa = core[ia];
@@ -962,8 +1018,10 @@ FeynmanSR::dSigma_ax_cx(const DiracOperator::TensorOperator &h, int kappa_w,
 
       dSigma_ax_t += dSigma_ax_core_term(dG_ax, kappa_v, Fa, G_delta, G_gamma,
                                          ie, i_d_epsilon);
-      mirror_t += dSigma_ax_core_term(dG_mirror, kappa_w, Fa, G_delta, G_gamma,
-                                      ie, i_d_epsilon);
+      if (dG_mirror) {
+        mirror_t += dSigma_ax_core_term(*dG_mirror, kappa_w, Fa, G_delta,
+                                        G_gamma, ie, i_d_epsilon);
+      }
     }
   }
 
@@ -979,6 +1037,9 @@ FeynmanSR::dSigma_ax_cx(const DiracOperator::TensorOperator &h, int kappa_w,
   // that at +Im(e), and we take Re part)
   dSigma_ax *= (-1.0 / M_PI);
   mirror *= (-1.0 / M_PI);
+  if (mirror_is_ax) {
+    mirror = dSigma_ax;
+  }
 
   // Relative sign between <w||h||v> and <v||h||w>
   const auto symm_sign = h.symm_sign(DiracSpinor(0, kappa_w, m_grid),

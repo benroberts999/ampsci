@@ -176,7 +176,10 @@ public:
     (c_x) is the mirror image of (a_x): the same diagram with w and v
     swapped and \f$ \omega \to -\omega \f$, transposed, times the symmetry
     sign of the operator (TensorOperator::symm_sign). The two need the same
-    Green's functions, so are formed together.
+    Green's functions, so are formed together. For a static field
+    (\f$ \omega = 0 \f$) between the same partial waves the mirror image is
+    (a_x) itself: (c_x) is then the transpose of (a_x), and is not
+    calculated separately.
 
     Screening (FeynmanOptions): the line \f$ Q_{1j} \f$ is the screened
     line (it is at the integration energy). \f$ Q_{i2} \f$ is at the
@@ -303,6 +306,23 @@ public:
     lines sum to zero. Each term has the form
     \f$ {\rm Tr}[A_{12}\,(B\,h\,C)_{21}] \f$ (see trace_product,
     perturbed_greens), with angular factor L_ang_dPi.
+
+    If h joins a core state to itself, the second and third terms each
+    contain a part with \f$ P^a h P^a \f$ (from the core part of the inner
+    Green's function), which has the factor \f$ 1/\omega \f$. Only their
+    sum is regular, since
+    \f[
+      G(\varepsilon_1) - G(\varepsilon_2) =
+        (\varepsilon_2 - \varepsilon_1)\,G(\varepsilon_1)\,G(\varepsilon_2) .
+    \f]
+    The two are replaced by the single term
+    \f[
+      -\left[G(\varepsilon_a - \varepsilon)\,
+        G(\varepsilon_a + \omega - \varepsilon)\right]_{12}
+      \left[P^a\, h\, P^a\right]_{21} ,
+    \f]
+    which is the same for any \f$ \omega \f$, and finite for a static field
+    (e.g., diagonal hyperfine matrix elements).
 
     @param h        External field operator
     @param epsilon  Complex energy
@@ -436,6 +456,25 @@ public:
                             const DiracSpinor *Fc_hp = nullptr) const;
 
   //----------------------------------------------------------------------------
+  /*!
+    @brief Core part of the loop Green's function (see green_loop).
+
+    @details
+    \f[
+      G^{\rm c}(\varepsilon) =
+        \sum_a \frac{\ket{a}\bra{a}}{\varepsilon - \varepsilon_a},
+    \f]
+    where the sum is over the polarised core states (n >= n_min) of this
+    partial wave.
+
+    @param kappa    Partial wave
+    @param en       Complex energy
+    @param Fc_skip  If given, this core state is left out of the sum
+  */
+  ComplexGMatrix green_loop_core(int kappa, std::complex<double> en,
+                                 const DiracSpinor *Fc_skip = nullptr) const;
+
+  //----------------------------------------------------------------------------
   // E1 operator only:
 
   /*!
@@ -557,6 +596,33 @@ double L_ang_dSR(int K, int kw, int kv, int kB, int kA, int k);
   The angular factor of h, \f$ \langle B\|h\|C\rangle \f$, is not included.
 */
 double L_ang_dPi(int K, int k, int l, int kappa_A, int kappa_B, int kappa_C);
+
+/*!
+  @brief Adds one term of the perturbed polarisation operator
+  (FeynmanSR::dPi_b) to each multipolarity.
+
+  @details
+  \f[
+    \delta\pi_{kl}(r_1, r_2) \mathrel{+}=
+      L^{kl}_{ABC}\,{\rm Tr}[A_{12}\,(B\,h\,C)_{21}] ,
+  \f]
+  with the angular factor L_ang_dPi, and the trace from trace_product.
+  Added in place: only the few k, l allowed by the angular factor are
+  touched.
+
+  @param dPi_kl   Perturbed polarisation operator, indexed [k][l]; the term
+                  is added to it
+  @param K        Rank of the external field
+  @param kappa_A  Partial wave of A
+  @param kappa_B  Partial wave of B
+  @param kappa_C  Partial wave of C
+  @param A        Line running from vertex 1 to 2
+  @param BhC      Perturbed line, B*<B||h||C>*C (see
+                  FeynmanSR::perturbed_greens)
+*/
+void add_dPi_term(LinAlg::Matrix<ComplexRMatrix> *dPi_kl, int K, int kappa_A,
+                  int kappa_B, int kappa_C, const ComplexGMatrix &A,
+                  const ComplexGMatrix &BhC);
 
 /*!
   @brief Angular factor coupling the perturbed polarisation operator to the
