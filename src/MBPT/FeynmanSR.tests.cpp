@@ -128,7 +128,7 @@ TEST_CASE("FeynSR: core polarisation in perturbed Greens function",
 
 //==============================================================================
 TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
-  // Structure radiation diagrams (a), (b)+(c), and (a_x), with core
+  // Structure radiation diagrams (a), (b), (c), (a_x) and (c_x), with core
   // polarisation of the external field, against the same diagrams from a
   // sum over a B-spline basis.
   // Small sub-grid and basis: tests the method, not high accuracy
@@ -175,7 +175,7 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
   fmt::print("{:3s} {:3s} {:4s} {:>11s} {:>11s} {:>8s}\n", "w", "v", "",
              "Basis", "Feynman", "eps");
 
-  // Both orderings: (a_x) is not symmetric
+  // Both orderings: (a_x) and (c_x) swap
   for (const auto &[Fw, Fv] : {std::pair{&F2s, &F2p}, std::pair{&F2p, &F2s}}) {
     const auto omega = Fw->en() - Fv->en();
 
@@ -191,28 +191,37 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
     // Fw * (dSigma * Fv)
     const auto dSigma_a =
       Fy.dSigma_a(h, Fw->kappa(), Fv->kappa(), Fv->en(), omega, dV.get());
-    const auto dSigma_bc =
+    const auto [dSigma_b, dSigma_c] =
       Fy.dSigma_bc(h, Fw->kappa(), Fv->kappa(), Fv->en(), omega, dV.get());
-    const auto dSigma_ax =
-      Fy.dSigma_ax(h, Fw->kappa(), Fv->kappa(), Fv->en(), omega, dV.get());
+    const auto [dSigma_ax, dSigma_cx] =
+      Fy.dSigma_ax_cx(h, Fw->kappa(), Fv->kappa(), Fv->en(), omega, dV.get());
     const auto a_Feynman = *Fw * (dSigma_a * *Fv);
-    const auto bc_Feynman = *Fw * (dSigma_bc * *Fv);
+    const auto b_Feynman = *Fw * (dSigma_b * *Fv);
+    const auto c_Feynman = *Fw * (dSigma_c * *Fv);
     const auto ax_Feynman = *Fw * (dSigma_ax * *Fv);
+    const auto cx_Feynman = *Fw * (dSigma_cx * *Fv);
 
     const auto eps_a = std::abs(a_Feynman / a - 1.0);
-    const auto eps_bc = std::abs(bc_Feynman / (b + c) - 1.0);
+    const auto eps_b = std::abs(b_Feynman / b - 1.0);
+    const auto eps_c = std::abs(c_Feynman / c - 1.0);
     const auto eps_ax = std::abs(ax_Feynman / ax - 1.0);
+    const auto eps_cx = std::abs(cx_Feynman / cx - 1.0);
 
     fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n",
                Fw->shortSymbol(), Fv->shortSymbol(), "a", a, a_Feynman, eps_a);
-    fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "b+c",
-               b + c, bc_Feynman, eps_bc);
+    fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "b",
+               b, b_Feynman, eps_b);
+    fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "c",
+               c, c_Feynman, eps_c);
     fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "ax",
                ax, ax_Feynman, eps_ax);
+    fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "cx",
+               cx, cx_Feynman, eps_cx);
 
     REQUIRE(eps_a < 0.01);
-    // (b) and (c) nearly cancel: the error of each is magnified in the sum
-    REQUIRE(eps_bc < 0.2);
-    REQUIRE(eps_ax < 0.02);
+    REQUIRE(eps_b < 0.01);
+    REQUIRE(eps_c < 0.01);
+    REQUIRE(eps_ax < 0.01);
+    REQUIRE(eps_cx < 0.01);
   }
 }

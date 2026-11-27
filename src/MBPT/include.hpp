@@ -2,6 +2,7 @@
 #pragma once
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/Feynman.hpp"
+#include "MBPT/FeynmanSR.hpp"
 #include "MBPT/Goldstone.hpp"
 #include "MBPT/Ladder.hpp"
 #include "MBPT/LadderDriver.hpp"

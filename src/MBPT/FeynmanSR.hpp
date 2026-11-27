@@ -5,6 +5,8 @@
 #include "MBPT/SpinorMatrix.hpp"
 #include <complex>
 #include <optional>
+#include <utility>
+#include <vector>
 
 namespace DiracOperator {
 class TensorOperator;
@@ -41,11 +43,11 @@ namespace MBPT {
   \f]
   Coordinate integration is implied over repeated Latin indices.
 
-  - dSigma_a  : field on the valence (outer) Green's function line
+  - dSigma_a  : field on the outer Green's function line
   - dSigma_bc : field on either Green's function line of the polarisation
                 loop (perturbed polarisation operator, see dPi_b)
-  - dSigma_ax : exchange diagram, field on the internal line adjacent to
-                the final state w
+  - dSigma_ax_cx : exchange diagrams, field on the internal line adjacent
+                to the final state w (a_x), or to the initial state v (c_x)
 
   The diagrams are formed as matrices on the radial sub-grid, by
   integration along the imaginary energy axis.
@@ -57,8 +59,8 @@ namespace MBPT {
   - dSigma_a  : both, through Q*Pi*Q
   - dSigma_bc : both Coulomb lines screened; hole-particle in the
                 perturbed polarisation loop
-  - dSigma_ax : one Coulomb line screened; hole-particle in the exchange
-                operator
+  - dSigma_ax_cx : one Coulomb line screened; hole-particle in the
+                exchange operator
   See each function for what is approximated.
 
   Sigma_SR_direct, Sigma_SR_direct2, and the functions they use are for the
@@ -91,7 +93,8 @@ public:
                     \f$ \varepsilon_w - \varepsilon_v \f$
     @param dV       Optional: core polarisation (already solved, at the
                     frequency of the caller's choice). If given, the vertex
-                    is h + dV (see dV_matrices)
+                    is h + dV (see dV_matrices). For negative @p omega, the
+                    conjugate component of dV is used
 
     @return Matrix on the sub-grid; the reduced matrix element is
     `Fw * (dSigma * Fv)`.
@@ -110,7 +113,7 @@ public:
 
   //----------------------------------------------------------------------------
   /*!
-    @brief Direct SR diagrams (b) + (c): 
+    @brief Direct SR diagrams (b) and (c): 
     external field inside the polarisation loop of the direct diagram.
 
     @details
@@ -126,7 +129,11 @@ public:
         \delta\Pi^{(b)}_{21}(\omega - \varepsilon) .
     \f]
 
-    Parameters and return as for dSigma_a.
+    Parameters as for dSigma_a.
+
+    @return {dSigma^(b), dSigma^(c)}, from the two terms of
+    \f$ \delta\Pi \f$: for each, the reduced matrix element is
+    `Fw * (dSigma * Fv)`. The two nearly cancel.
 
     @warning The operator must be local in r (see perturbed_greens).
 
@@ -141,14 +148,15 @@ public:
     @note Forms Q*Pi*Q if screening is on and it has not yet been formed
           (see Feynman::form_qpiq).
   */
-  GMatrix dSigma_bc(const DiracOperator::TensorOperator &h, int kappa_w,
-                    int kappa_v, double en_v, double omega,
-                    const ExternalField::CorePolarisation *dV = nullptr);
+  std::pair<GMatrix, GMatrix>
+  dSigma_bc(const DiracOperator::TensorOperator &h, int kappa_w, int kappa_v,
+            double en_v, double omega,
+            const ExternalField::CorePolarisation *dV = nullptr);
 
   //----------------------------------------------------------------------------
   /*!
-    @brief Exchange SR diagram (a_x): 
-    external field on the internal line next to final state.
+    @brief Exchange SR diagrams (a_x) and (c_x): 
+    field acts on internal line next to final (a_x), or initial (c_x) state.
 
     @details
     \f[
@@ -165,6 +173,11 @@ public:
     \f]
     summed over the polarised core states a.
 
+    (c_x) is the mirror image of (a_x): the same diagram with w and v
+    swapped and \f$ \omega \to -\omega \f$, transposed, times the symmetry
+    sign of the operator (TensorOperator::symm_sign). The two need the same
+    Green's functions, so are formed together.
+
     Screening (FeynmanOptions): the line \f$ Q_{1j} \f$ is the screened
     line (it is at the integration energy). \f$ Q_{i2} \f$ is at the
     energy of the integral inside \f$ \Gamma \f$, and stays bare.
@@ -180,7 +193,8 @@ public:
     @param dV       Optional: core polarisation; vertex is then h + dV
                     (see dSigma_a)
 
-    @return dSigma^(ax): reduced matrix element is `Fw * (dSigma * Fv)`.
+    @return {dSigma^(ax), dSigma^(cx)}: for each, the reduced matrix
+    element is `Fw * (dSigma * Fv)`.
 
     @note Local operators only (see perturbed_greens).
     @note The g components of the Green's functions are contracted only if
@@ -188,9 +202,76 @@ public:
     @note Forms Q*Pi*Q if screening is on and it has not yet been formed
           (see Feynman::form_qpiq).
   */
-  GMatrix dSigma_ax(const DiracOperator::TensorOperator &h, int kappa_w,
-                    int kappa_v, double en_v, double omega,
-                    const ExternalField::CorePolarisation *dV = nullptr);
+  std::pair<GMatrix, GMatrix>
+  dSigma_ax_cx(const DiracOperator::TensorOperator &h, int kappa_w, int kappa_v,
+               double en_v, double omega,
+               const ExternalField::CorePolarisation *dV = nullptr);
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Perturbed Green's function (see perturbed_greens) for each pair
+    of partial waves, with its angular factors, summed over the partial
+    wave on the final-state side. For the line next to the final state in
+    the exchange diagrams.
+
+    @details
+    For each partial wave \f$ \beta \f$ (next to the exchange operator) and
+    multipolarity k of the Coulomb line at the final state:
+    \f[
+      \delta G^k_\beta = \sum_\alpha L\, C^k_{w\alpha}\,
+        G_\alpha\, \langle\alpha||h||\beta\rangle\, G_\beta ,
+    \f]
+    with L from L_ang_dSR.
+
+    @param h        External field operator
+    @param kappa_w  Kappa of the final state (on the left)
+    @param kappa_v  Kappa of the initial state (on the right)
+    @param G_alpha  Green's functions to the left of h, for each kappa index
+    @param G_beta   Green's functions to the right of h, for each kappa index
+    @param dV_kappa Core polarisation matrices, from dV_matrices
+
+    @return Indexed (kappa index of beta, k); empty where zero by selection
+    rules.
+  */
+  LinAlg::Matrix<std::optional<ComplexGMatrix>> perturbed_greens_summed(
+    const DiracOperator::TensorOperator &h, int kappa_w, int kappa_v,
+    const std::vector<ComplexGMatrix> &G_alpha,
+    const std::vector<ComplexGMatrix> &G_beta,
+    const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dV_kappa) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Contribution of one core state a, at one integration energy, to
+    the integrand of the exchange diagram (a_x) (see dSigma_ax_cx).
+
+    @details
+    \f[
+      {\rm Re}\left[ i\,d\varepsilon\;
+        \delta G_{1i}\, Q_{1j}\, \Gamma^a_{ij2}(\varepsilon)\, Q_{i2} \right],
+    \f]
+    with
+    \f[
+      \Gamma^a_{123}(\varepsilon) =
+        P^a_{12}\, G^{\rm e}_{23}(\varepsilon_a - \varepsilon)
+        + G^{\rm e}_{12}(\varepsilon_a + \varepsilon)\, P^a_{23} .
+    \f]
+
+    @param dG_beta_k    Perturbed Green's function (perturbed_greens_summed)
+    @param kappa_v      Kappa of the initial state (on the right)
+    @param Fa           Core state a
+    @param G_delta      \f$ G^{\rm e}(\varepsilon_a - \varepsilon) \f$, for
+                        each kappa index
+    @param G_gamma      \f$ G^{\rm e}(\varepsilon_a + \varepsilon) \f$, for
+                        each kappa index
+    @param ie           Index of the integration energy (for the screened
+                        Coulomb line, see dQ_screening)
+    @param i_d_epsilon  i times the integration weight \f$ d\varepsilon \f$
+  */
+  GMatrix dSigma_ax_core_term(
+    const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dG_beta_k, int kappa_v,
+    const DiracSpinor &Fa, const std::vector<ComplexGMatrix> &G_delta,
+    const std::vector<ComplexGMatrix> &G_gamma, std::size_t ie,
+    std::complex<double> i_d_epsilon) const;
 
   //----------------------------------------------------------------------------
   /*!
@@ -296,9 +377,13 @@ public:
     \f$ \langle a || \delta V || b \rangle = F_a \cdot (\delta V_{AB} F_b) \f$.
     Direct and exchange parts of dV are treated together.
 
-    @param h   External field operator (for the selection rules)
-    @param dV  Core polarisation, already solved. The absorption form is
-               used (see class notes). nullptr: all entries empty
+    @param h    External field operator (for the selection rules)
+    @param dV   Core polarisation, already solved. nullptr: all entries
+                empty
+    @param conj false: dV for a field of positive frequency (absorption);
+                true: its conjugate, for a field of negative frequency (see
+                ExternalField::CorePolarisation::dV). Makes no difference
+                if dV was solved at zero frequency
 
     @return Matrices indexed by kappa index, (A, B); empty where h is zero
             by selection rules.
@@ -307,7 +392,7 @@ public:
   */
   LinAlg::Matrix<std::optional<ComplexGMatrix>>
   dV_matrices(const DiracOperator::TensorOperator &h,
-              const ExternalField::CorePolarisation *dV);
+              const ExternalField::CorePolarisation *dV, bool conj = false);
 
   //----------------------------------------------------------------------------
   /*!
@@ -355,10 +440,10 @@ public:
 
   /*!
     @brief Direct structure radiation diagram with the external field on the
-    valence line; E1 only.
+    outer Green's function line; E1 only.
 
     @details
-    The valence line of the direct diagram is replaced by the perturbed
+    The outer Green's function of the direct diagram is replaced by the perturbed
     Green's function (see perturbed_greens),
     \f[
       \delta G 
@@ -384,7 +469,7 @@ public:
     @details
     The polarisation operator is replaced by the perturbed polarisation
     operator (see perturbed_polarisation_kl), between two bare Coulomb
-    lines; the valence line is the unperturbed Green's function. Sum of the
+    lines; the outer line is the unperturbed Green's function. Sum of the
     two diagrams (field on either line of the loop): with
     \f$ \delta\Pi \f$ that of perturbed_polarisation_kl, the second is
     \f[
@@ -475,7 +560,7 @@ double L_ang_dPi(int K, int k, int l, int kappa_A, int kappa_B, int kappa_C);
 
 /*!
   @brief Angular factor coupling the perturbed polarisation operator to the
-  valence line, for structure radiation diagrams (b) + (c)
+  outer Green's function line, for structure radiation diagrams (b) + (c)
   (FeynmanSR::dSigma_bc).
 
   @details
@@ -484,7 +569,7 @@ double L_ang_dPi(int K, int k, int l, int kappa_A, int kappa_B, int kappa_C);
     \begin{Bmatrix} j_w & K & j_v \\ l & j_\alpha & k \end{Bmatrix},
   \f]
   with w the final state (on the left), v the initial state (on the right),
-  \f$ \alpha \f$ the partial wave of the valence line, and k, l the
+  \f$ \alpha \f$ the partial wave of the outer Green's function, and k, l the
   multipolarities of the left and right Coulomb lines. The factors
   \f$ C^k_{w\alpha}\, C^l_{\alpha v} \f$ are not included.
 */
@@ -494,7 +579,7 @@ double L_ang_dSigma_bc(int K, int kappa_w, int kappa_v, int kappa_alpha, int k,
 //------------------------------------------------------------------------------
 /*!
   @brief Angular factor for the exchange part of structure radiation
-  diagram (a_x) (FeynmanSR::dSigma_ax).
+  diagram (a_x) (FeynmanSR::dSigma_ax_cx).
 
   @details
   \f[

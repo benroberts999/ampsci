@@ -2,3 +2,4 @@
 #pragma once
 #include "Modules/Modules.hpp"
 #include "Modules/SRBreakdown.hpp"
+#include "Modules/StructRad.hpp"

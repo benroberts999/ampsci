@@ -70,7 +70,6 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::size_t stride = input.get("stride", default_stride);
   const auto n_min_core = input.get("n_min_core", 1);
   const bool includeG = input.get("includeG", false);
-  const bool exchange = input.get("exchange", false);
   // Sub-grid as for the Correlations Feynman (so Q*Pi*Q cache can be shared)
   const auto gsize = (imax - i0) / stride + 1;
   const auto screening = input.get("screening", false);
@@ -103,56 +102,60 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "Coulomb Screening: " << screening << ", Include G:" << includeG
             << "\n";
-  std::cout << "Exchange: " << exchange << "\n";
 
   std::cout << "\nStructure radiation, broken up by Feynman diagram: "
             << h->name() << "\n";
-  std::cout << "Reduced matrix elements <w||h||v>, omega = e_w - e_v ("
-            << h->units() << ")\n";
+  std::cout << "Reduced matrix elements <w||h||v> (" << h->units() << ")\n";
 
   // Values are printed as +d.[n_digits]e-xx
-  const int n_digits = 4;
+  const int n_digits = 3;
   const auto width = n_digits + 7;
 
-  // 1) Each diagram, from the functions that take any operator
-  std::vector<std::string> labels{"a", "b+c"};
-  if (exchange) {
-    labels.push_back("ax");
-  }
-  labels.push_back("total");
-  std::cout << "\nFunctions for any operator:\n";
+  // (b_x) is not calculated: its column is left blank
+  std::cout << "\n";
   fmt::print("{:5s} {:5s}", "w", "v");
-  for (const auto &label : labels) {
+  for (const auto label : {"a", "b", "c", "ax", "bx", "cx", "total"}) {
     fmt::print(" {:>{}s}", label, width);
   }
   fmt::print("\n");
-  for (const auto &w : wf.valence()) {
-    for (const auto &v : wf.valence()) {
+  // Each value is printed as soon as it is known
+  const auto print_value = [&](double value) {
+    fmt::print(" {:+{}.{}e}", value, width, n_digits);
+    std::cout << std::flush;
+  };
+  for (const auto &v : wf.valence()) {
+    for (const auto &w : wf.valence()) {
       if (h->isZero(w.kappa(), v.kappa()))
         continue;
       const auto omega = w.en() - v.en();
 
+      fmt::print("{:5s} {:5s}", w.shortSymbol(), v.shortSymbol());
+      std::cout << std::flush;
+
       const auto a =
         w *
         (Fyn.dSigma_a(*h, w.kappa(), v.kappa(), v.en(), omega, rpa.get()) * v);
-      const auto bc =
-        w *
-        (Fyn.dSigma_bc(*h, w.kappa(), v.kappa(), v.en(), omega, rpa.get()) * v);
-      std::vector<double> values{a, bc};
-      auto total = a + bc;
-      if (exchange) {
-        const auto ax = w * (Fyn.dSigma_ax(*h, w.kappa(), v.kappa(), v.en(),
-                                           omega, rpa.get()) *
-                             v);
-        values.push_back(ax);
-        total += ax;
-      }
-      values.push_back(total);
+      print_value(a);
 
-      fmt::print("{:5s} {:5s}", w.shortSymbol(), v.shortSymbol());
-      for (const auto value : values) {
-        fmt::print(" {:+{}.{}e}", value, width, n_digits);
-      }
+      const auto [dSigma_b, dSigma_c] =
+        Fyn.dSigma_bc(*h, w.kappa(), v.kappa(), v.en(), omega, rpa.get());
+      const auto b = w * (dSigma_b * v);
+      const auto c = w * (dSigma_c * v);
+      print_value(b);
+      print_value(c);
+
+      auto total = a + b + c;
+
+      const auto [dSigma_ax, dSigma_cx] =
+        Fyn.dSigma_ax_cx(*h, w.kappa(), v.kappa(), v.en(), omega, rpa.get());
+      const auto ax = w * (dSigma_ax * v);
+      const auto cx = w * (dSigma_cx * v);
+      print_value(ax);
+      fmt::print(" {:>{}s}", "", width);
+      print_value(cx);
+      total += ax + cx;
+
+      print_value(total);
       fmt::print("\n");
       std::cout << std::flush;
     }
