@@ -892,9 +892,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"rpa",
       "true/false. Include the RPA (core-polarisation) corrections [false]"},
      {"rpa_E_max", "RPA: solve the RPA only for energy transfers E up to this "
-                   "(eV) [500]"},
+                   "(eV); extended to the first E grid point at or above it "
+                   "[500]"},
      {"rpa_q_max", "RPA: solve the RPA only for momentum transfers q up to "
-                   "this (eV). [2.0e4]"},
+                   "this (eV); extended to the first q grid point at or above "
+                   "it [2.0e4]"},
      {"rpa_K_max", "Solve the RPA only for multipoles K up to this [1]"},
      {"rpa_stride", "two values, E stride and q stride. The RPA is "
                     "solved only at every n-th point of the E and q grids, "
@@ -1241,10 +1243,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   rpa_options.eps = input.get("rpa_eps", 1.0e-8);
   rpa_options.eps_fail = input.get("rpa_eps_fail", 1.0e-4);
   // Limits on where the RPA is solved (bare factors elsewhere); input in eV
+  // Each limit is extended to the grid point at or above it, so that the RPA
+  // covers at least the requested range (diagonal case: q = E/c, so the q
+  // limit is on the energy grid)
   const auto rpa_E_max_eV = input.get("rpa_E_max", 500.0);
   const auto rpa_q_max_eV = input.get("rpa_q_max", 2.0e4);
-  rpa_options.E_max = rpa_E_max_eV * UnitConv::Energy_eV_to_au;
-  rpa_options.q_max = rpa_q_max_eV * UnitConv::Momentum_eV_to_au;
+  rpa_options.E_max = Kion::grid_point_at_or_above(
+    Egrid, rpa_E_max_eV * UnitConv::Energy_eV_to_au);
+  rpa_options.q_max =
+    Kion::grid_point_at_or_above(diagonal_Eq ? Egrid * PhysConst::alpha : qgrid,
+                                 rpa_q_max_eV * UnitConv::Momentum_eV_to_au);
   rpa_options.K_max = input.get("rpa_K_max", 1);
 
   // E stride, q stride
@@ -1272,8 +1280,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                rpa_options.max_its, rpa_options.eps, rpa_options.eps_fail);
 
     std::cout << "  RPA included for:";
-    fmt::print(" E <= {:.4g} eV;", rpa_E_max_eV);
-    fmt::print(" q <= {:.4g} eV;", rpa_q_max_eV);
+    fmt::print(" E <= {:.4g} eV;",
+               rpa_options.E_max * UnitConv::Energy_au_to_eV);
+    fmt::print(" q <= {:.4g} eV;",
+               rpa_options.q_max * UnitConv::Momentum_au_to_eV);
     fmt::print(" K <= {};", rpa_options.K_max);
     std::cout << "\n";
 
@@ -1401,20 +1411,27 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << std::flush;
   }
 
-  // Radial grid parameters, for the header of the output files. With
-  // auto_grid, num_points is that of each energy block (set below)
-  std::vector<std::size_t> block_num_points;
-  std::string radial_grid_text;
+  // Radial grid parameters, for the header of the output files (with
+  // auto_grid, the grid differs between energy blocks)
+  const auto radial_grid_text =
+    use_auto_grid ?
+      std::string{"auto"} :
+      fmt::format("r0 = {:g}, rmax = {:g}, num_points = {}, b = {:g}",
+                  wf.grid().r0(), wf.grid().rmax(), wf.grid().num_points(),
+                  wf.grid().loglin_b());
 
-  // Writes the per-orbital files (if requested), then the total
+  // Writes the per-orbital files (if requested), then the total. The E and q
+  // at which the RPA was solved are empty for the bare factors
   const auto write_factors = [&](const std::string &prefix,
-                                 const std::vector<Kion::FormFactorSet> &K_nk) {
+                                 const std::vector<Kion::FormFactorSet> &K_nk,
+                                 const std::vector<double> &rpa_E_grid,
+                                 const std::vector<double> &rpa_q_grid) {
     if (each_state) {
       for (std::size_t ia = 0; ia < wf.core().size(); ++ia) {
         Kion::write_to_file_xyz_13(
           wf.core()[ia].shortSymbol() + "." + prefix + ".txt", Egrid, qgrid,
           titles, descriptions, K_nk[ia], units, num_digits, diagonal_Eq,
-          radial_grid_text);
+          radial_grid_text, rpa_E_grid, rpa_q_grid);
       }
     }
     // Total over the orbitals (factors not calculated stay empty)
@@ -1437,9 +1454,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
     std::cout << "\n";
-    Kion::write_to_file_xyz_13(prefix + ".txt", Egrid, qgrid, titles,
-                               descriptions, total, units, num_digits,
-                               diagonal_Eq, radial_grid_text);
+    Kion::write_to_file_xyz_13(
+      prefix + ".txt", Egrid, qgrid, titles, descriptions, total, units,
+      num_digits, diagonal_Eq, radial_grid_text, rpa_E_grid, rpa_q_grid);
     std::cout << "\n";
   };
 
@@ -1491,7 +1508,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
         if (!wf_dense || wf_dense->grid().num_points() != dense_num_points) {
           auto grid_params = wf.grid().params();
           grid_params.num_points = dense_num_points;
-          std::cout << "Re-solving Hartree-Fock:\n";
+          std::cout
+            << "Re-solving "; // "Hartree Fock\n" printed by solve_core()
           wf_dense.emplace(grid_params, wf.nucleus(), alpha_ratio,
                            wf.run_label());
           wf_dense->solve_core(wf.vHF()->method(), wf.coreConfiguration());
@@ -1516,7 +1534,6 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
     const auto vHF_group = wf_group->vHF();
-    block_num_points.push_back(wf_group->grid().num_points());
 
     // Spherical Bessel lookup table, on the q grid (in the diagonal case, on
     // q = E/c at each energy). Each operator stores a pointer to this table.
@@ -1570,6 +1587,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       factors.n_solves += group_factors.n_solves;
       factors.n_failed += group_factors.n_failed;
       factors.n_interpolated += group_factors.n_interpolated;
+      factors.Egrid_solved.insert(factors.Egrid_solved.end(),
+                                  group_factors.Egrid_solved.begin(),
+                                  group_factors.Egrid_solved.end());
+      factors.qgrid_solved.insert(factors.qgrid_solved.end(),
+                                  group_factors.qgrid_solved.begin(),
+                                  group_factors.qgrid_solved.end());
     } else {
       std::cout << "Calculating form factors:\n";
       group_factors.bare = Kion::calculate_formFactors(
@@ -1598,13 +1621,13 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Kion::insert_formFactors(&factors.rpa, group_factors.rpa, E_indices);
     }
   }
-  radial_grid_text =
-    fmt::format("r0 = {:g}, rmax = {:g}, num_points = {}, b = {:g}",
-                wf.grid().r0(), wf.grid().rmax(),
-                use_auto_grid ? fmt::format("auto ({}, by energy block)",
-                                            fmt::join(block_num_points, ", ")) :
-                                std::to_string(wf.grid().num_points()),
-                wf.grid().loglin_b());
+  // The RPA E and q points of all the energy blocks, ascending (every block
+  // solves at the same q)
+  std::sort(factors.Egrid_solved.begin(), factors.Egrid_solved.end());
+  std::sort(factors.qgrid_solved.begin(), factors.qgrid_solved.end());
+  factors.qgrid_solved.erase(
+    std::unique(factors.qgrid_solved.begin(), factors.qgrid_solved.end()),
+    factors.qgrid_solved.end());
 
   // Failed solves were corrected within their own (K, factor) block, from
   // the converged neighbours in E and q, before the sum over K
@@ -1620,10 +1643,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (use_rpa) {
     std::cout << "With RPA:\n";
-    write_factors(ofname_prefix_rpa, factors.rpa);
+    write_factors(ofname_prefix_rpa, factors.rpa, factors.Egrid_solved,
+                  factors.qgrid_solved);
     std::cout << "Without RPA:\n";
   }
-  write_factors(ofname_prefix, factors.bare);
+  write_factors(ofname_prefix, factors.bare, {}, {});
 }
 
 } // namespace Module

@@ -162,10 +162,12 @@ std::size_t check_radial_grid_E(double Emax, const Grid &rgrid,
   (the full width at half maximum for a hydrogen-like 1s state, to within a
   few percent). The check passes if the q step at the ridge is at most
   half of this, for every orbital and every energy whose ridge lies within
-  the q grid. Only a rough guide. For each decade of energy above 100 eV,
-  prints the q step at the ridge and the step required, for the worst case
-  in that decade, and the number of orbitals for which the check fails; if
-  it fails, also a warning with the lowest energy at which it fails and the
+  the q grid. Only a rough guide. Prints the step required for the narrowest
+  ridge (the most loosely bound orbital), then for each decade of energy
+  (E <= 100 eV, <= 1000 eV, ...; labelled by its upper boundary, or by the
+  largest energy for the last) the q step at the ridge, for the worst case in
+  that decade, and the number of orbitals for which the check fails; if it
+  fails, also a warning with the lowest energy at which it fails and the
   q_steps required.
 
   @param core   Core orbitals.
@@ -243,6 +245,11 @@ struct FormFactorsRPA {
   //! How many of the failed solves had a converged neighbour (same K and
   //! operator, adjacent E or q) to interpolate the RPA shift from
   std::size_t n_interpolated{0};
+  //! Energy transfers at which the RPA was solved, in au (interpolated
+  //! between, within the RPA limits); empty if it was not solved
+  std::vector<double> Egrid_solved{};
+  //! As Egrid_solved, for the momentum transfers
+  std::vector<double> qgrid_solved{};
 };
 
 //------------------------------------------------------------------------------
@@ -979,6 +986,22 @@ stride_points(std::size_t num_points, std::size_t stride,
 
 //------------------------------------------------------------------------------
 /*!
+  @brief The smallest grid value at or above a limit: the grid point that
+  covers the limit.
+
+  @details
+  Used to extend a limit given as input (e.g., the RPA E and q limits) to a
+  point of the grid, so that the range up to the limit is covered in full.
+
+  @param grid   Grid values (any order).
+  @param limit  The limit.
+  @return The smallest value of @p grid that is >= @p limit; @p limit itself
+          if every value is below it.
+*/
+double grid_point_at_or_above(const std::vector<double> &grid, double limit);
+
+//------------------------------------------------------------------------------
+/*!
   @brief Interpolates a table known on some rows and columns of a grid to
   every row and column: bilinear in the logarithms of the grid values.
 
@@ -1091,6 +1114,10 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
                        written as alpha*E, and @p q_grid is not used.
   @param radial_grid   Parameters of the radial grid, as text for the header
                        ('r grid' line; left out if empty).
+  @param rpa_E_grid    Energy transfers at which the RPA was solved, in au,
+                       ascending ('RPA E grid' line; left out if empty).
+  @param rpa_q_grid    As @p rpa_E_grid, for the momentum transfers ('RPA q
+                       grid' line; left out if empty, or if @p diagonal).
 */
 void write_to_file_xyz(const std::string &filename,
                        const std::vector<double> &E_grid,
@@ -1100,7 +1127,9 @@ void write_to_file_xyz(const std::string &filename,
                        std::vector<LinAlg::Matrix_view<const double>> factors,
                        Units units = Units::Particle, int num_digits = 6,
                        bool diagonal = false,
-                       const std::string &radial_grid = "");
+                       const std::string &radial_grid = "",
+                       const std::vector<double> &rpa_E_grid = {},
+                       const std::vector<double> &rpa_q_grid = {});
 
 //------------------------------------------------------------------------------
 //! As write_to_file_xyz, for a FormFactorSet (empty factors are skipped)
@@ -1109,6 +1138,8 @@ void write_to_file_xyz_13(
   const std::vector<double> &q_grid, const std::vector<std::string> &titles,
   const std::vector<std::string> &descriptions, const FormFactorSet &K_factors,
   Units units = Units::Particle, int num_digits = 6, bool diagonal = false,
-  const std::string &radial_grid = "");
+  const std::string &radial_grid = "",
+  const std::vector<double> &rpa_E_grid = {},
+  const std::vector<double> &rpa_q_grid = {});
 
 } // namespace Kion

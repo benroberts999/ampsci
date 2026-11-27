@@ -1108,6 +1108,8 @@ FormFactorsRPA calculate_formFactors_RPA(
       vHF_rpa, lc_minmax, ec_min, force_rescale, hole_particle, force_orthog,
       Egrid_solved, qgrid_solved, diagonal_Eq, low_q, *jK_tab_rpa, Kmin,
       Kmax_rpa, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+    factors.Egrid_solved = Egrid_solved;
+    factors.qgrid_solved = qgrid_solved;
   }
 
   // The bare factors: every multipole over the full grids (what a run
@@ -1398,6 +1400,17 @@ std::vector<std::size_t> stride_points(std::size_t num_points,
 }
 
 //==============================================================================
+double grid_point_at_or_above(const std::vector<double> &grid, double limit) {
+  auto point = std::numeric_limits<double>::infinity();
+  for (const auto value : grid) {
+    if (value >= limit) {
+      point = std::min(point, value);
+    }
+  }
+  return std::isinf(point) ? limit : point;
+}
+
+//==============================================================================
 
 LinAlg::Matrix<double> interpolate_log_bilinear(
   const std::vector<double> &x_known, const std::vector<double> &y_known,
@@ -1529,7 +1542,7 @@ std::size_t check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha,
 std::size_t check_ridge_q_grid(const std::vector<DiracSpinor> &core,
                                const std::vector<double> &Egrid,
                                const std::vector<double> &qgrid, double alpha) {
-  if (qgrid.size() < 2)
+  if (qgrid.size() < 2 || core.empty() || Egrid.empty())
     return qgrid.size();
 
   auto q_sorted = qgrid;
@@ -1538,14 +1551,26 @@ std::size_t check_ridge_q_grid(const std::vector<DiracSpinor> &core,
   // The q step at the ridge must be at most this fraction of the ridge width
   const double max_step_on_width = 0.5;
 
+  // Required q step for each orbital: from its ridge width, the momentum
+  // spread of the bound state
+  std::vector<double> required_steps;
+  for (const auto &Fa : core) {
+    required_steps.push_back(max_step_on_width *
+                             std::sqrt(2.0 * std::abs(Fa.en())));
+  }
+
   // Lowest energy at which the check fails, and the smallest relative q step
   // (step/q) that is required anywhere
   double lowest_failed_E = std::numeric_limits<double>::infinity();
   double required_relative_step = std::numeric_limits<double>::infinity();
 
   std::cout << "\nCheck q grid for the Bethe ridge:\n";
+  fmt::print("Required dq: {:.2f}\n",
+             *std::min_element(required_steps.begin(), required_steps.end()));
 
-  // Decades of energy: E <= 100 eV, <= 1000 eV, ...
+  // Decades of energy: E <= 100 eV, <= 1000 eV, ...; each labelled by its
+  // upper boundary, or by the largest energy for the last decade
+  const auto E_max = *std::max_element(Egrid.begin(), Egrid.end());
   const auto first_decade_max = 100.0 / UnitConv::Energy_au_to_eV;
   for (const auto &E_indices : energy_decades(Egrid, first_decade_max)) {
 
@@ -1553,16 +1578,21 @@ std::size_t check_ridge_q_grid(const std::vector<DiracSpinor> &core,
     for (const auto i_E : E_indices) {
       E_last = std::max(E_last, Egrid[i_E]);
     }
+    double decade_max = first_decade_max;
+    while (E_last > decade_max) {
+      decade_max *= 10.0;
+    }
+    const auto E_label = std::min(decade_max, E_max);
 
     // Worst case in this decade (largest q step compared to that required),
     // and the number of orbitals for which the check fails
     double worst_step_on_required = 0.0;
-    double worst_step = 0.0, worst_required_step = 0.0;
+    double worst_step = 0.0;
     std::size_t num_failed_orbitals = 0;
 
-    for (const auto &Fa : core) {
-      const auto ridge_width = std::sqrt(2.0 * std::abs(Fa.en()));
-      const auto required_step = max_step_on_width * ridge_width;
+    for (std::size_t ia = 0; ia < core.size(); ++ia) {
+      const auto &Fa = core[ia];
+      const auto required_step = required_steps[ia];
       bool orbital_failed = false;
       for (const auto i_E : E_indices) {
         const auto E = Egrid[i_E];
@@ -1585,7 +1615,6 @@ std::size_t check_ridge_q_grid(const std::vector<DiracSpinor> &core,
         if (q_step / required_step > worst_step_on_required) {
           worst_step_on_required = q_step / required_step;
           worst_step = q_step;
-          worst_required_step = required_step;
         }
       }
       if (orbital_failed) {
@@ -1593,12 +1622,11 @@ std::size_t check_ridge_q_grid(const std::vector<DiracSpinor> &core,
       }
     }
 
-    // Printed for the decades above 100 eV, if any ridge is within the q grid
-    if (E_last <= first_decade_max || worst_step_on_required == 0.0)
+    // Printed if any ridge is within the q grid
+    if (worst_step_on_required == 0.0)
       continue;
-    fmt::print("E = {:.1e} eV: dq = {:.2f}, required: {:.2f}: ",
-               E_last * UnitConv::Energy_au_to_eV, worst_step,
-               worst_required_step);
+    fmt::print("E = {:.1e} eV: dq = {:.2f} - ",
+               E_label * UnitConv::Energy_au_to_eV, worst_step);
     if (num_failed_orbitals == 0) {
       fmt::print("ok\n");
     } else {
@@ -1639,7 +1667,9 @@ void write_to_file_xyz(const std::string &filename,
                        const std::vector<std::string> &descriptions,
                        std::vector<LinAlg::Matrix_view<const double>> factors,
                        Units units, int num_digits, bool diagonal,
-                       const std::string &radial_grid) {
+                       const std::string &radial_grid,
+                       const std::vector<double> &rpa_E_grid,
+                       const std::vector<double> &rpa_q_grid) {
 
   assert(titles.size() == factors.size() && "Each factor must have a title");
 
@@ -1710,6 +1740,16 @@ void write_to_file_xyz(const std::string &filename,
   if (!radial_grid.empty()) {
     fmt::print(out_file, "# r grid: {}\n", radial_grid);
   }
+  if (!rpa_E_grid.empty()) {
+    fmt::print(out_file, "# RPA E grid: {} points, [{:.6e}, {:.6e}] {}\n",
+               rpa_E_grid.size(), rpa_E_grid.front() * unit_E,
+               rpa_E_grid.back() * unit_E, unit_str);
+  }
+  if (!diagonal && !rpa_q_grid.empty()) {
+    fmt::print(out_file, "# RPA q grid: {} points, [{:.6e}, {:.6e}] {}\n",
+               rpa_q_grid.size(), rpa_q_grid.front() * unit_q,
+               rpa_q_grid.back() * unit_q, unit_str);
+  }
   out_file << "################################################################"
               "################\n";
 
@@ -1752,7 +1792,9 @@ void write_to_file_xyz_13(
   const std::string &filename, const std::vector<double> &E_grid,
   const std::vector<double> &q_grid, const std::vector<std::string> &titles,
   const std::vector<std::string> &descriptions, const FormFactorSet &K_factors,
-  Units units, int num_digits, bool diagonal, const std::string &radial_grid) {
+  Units units, int num_digits, bool diagonal, const std::string &radial_grid,
+  const std::vector<double> &rpa_E_grid,
+  const std::vector<double> &rpa_q_grid) {
 
   const auto &K_VT = K_factors[0];  // Vector: temporal
   const auto &K_VE = K_factors[1];  // Vector: electric
@@ -1772,7 +1814,8 @@ void write_to_file_xyz_13(
     K_VT, K_VE, K_VM, K_VL, K_X, K_T5, K_E5, K_M5, K_L5, K_X5, K_Z, K_S, K_S5};
 
   return write_to_file_xyz(filename, E_grid, q_grid, titles, descriptions,
-                           factors, units, num_digits, diagonal, radial_grid);
+                           factors, units, num_digits, diagonal, radial_grid,
+                           rpa_E_grid, rpa_q_grid);
 }
 
 //==============================================================================
