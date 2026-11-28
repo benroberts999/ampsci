@@ -49,11 +49,26 @@ namespace MBPT {
   - dSigma_ax_cx : exchange diagrams, field on the internal line adjacent
                 to the final state w (a_x), or to the initial state v (c_x)
   - dSigma_bx : exchange diagram, field on the middle internal line (b_x)
+  - dSigma_total : sum of all of the above
 
   The diagrams are formed as matrices on the radial sub-grid, by
   integration along the imaginary energy axis.
   After angular reduction, each gives the reduced matrix element as
   `Fw * (dSigma * Fv)`.
+
+  The frequency \f$ \omega \f$ is an argument of each function, and is the
+  caller's choice: the frequency dependence of structure radiation is
+  weak, and is often neglected (\f$ \omega = 0 \f$).
+
+  The Green's functions are shared between the diagrams and the matrix
+  elements where they can be:
+  - Those of the line between the valence states are formed once for each
+    initial-state energy (form_line_greens).
+  - The excited Green's functions of the core loops do not depend on the
+    valence states or the operator: the stored set is used
+    (Feynman::calculate_gex; FeynmanOptions::store_gex). Those shifted by
+    \f$ \omega \f$ are solved as needed: for \f$ \omega = 0 \f$ there
+    are none.
 
   Screening of the Coulomb lines and the hole-particle interaction are
   included as set in FeynmanOptions (as for the correlation potential):
@@ -92,8 +107,9 @@ public:
     @param kappa_w  Kappa of the final state, w (on the left)
     @param kappa_v  Kappa of the initial state, v (on the right)
     @param en_v     Energy of the initial state
-    @param omega    Frequency of the external field,
-                    \f$ \varepsilon_w - \varepsilon_v \f$
+    @param omega    Frequency of the external field: the caller's choice
+                    (\f$ \varepsilon_w - \varepsilon_v \f$, or 0 to
+                    neglect the frequency dependence)
     @param dV       Optional: core polarisation (already solved, at the
                     frequency of the caller's choice). If given, the vertex
                     is h + dV (see dV_matrices). For negative @p omega, the
@@ -113,6 +129,28 @@ public:
   GMatrix dSigma_a(const DiracOperator::TensorOperator &h, int kappa_w,
                    int kappa_v, double en_v, double omega,
                    const ExternalField::CorePolarisation *dV = nullptr);
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Structure radiation: the sum of all the diagrams, direct and
+    exchange.
+
+    @details
+    \f[
+      \delta\Sigma = \delta\Sigma^{(a)} + \delta\Sigma^{(b)}
+        + \delta\Sigma^{(c)} + \delta\Sigma^{(a_{\rm x})}
+        + \delta\Sigma^{(b_{\rm x})} + \delta\Sigma^{(c_{\rm x})} ,
+    \f]
+    from dSigma_a, dSigma_bc, dSigma_ax_cx and dSigma_bx.
+
+    Parameters as for dSigma_a.
+
+    @return Matrix on the sub-grid; the reduced matrix element is
+    `Fw * (dSigma * Fv)`.
+  */
+  GMatrix dSigma_total(const DiracOperator::TensorOperator &h, int kappa_w,
+                       int kappa_v, double en_v, double omega,
+                       const ExternalField::CorePolarisation *dV = nullptr);
 
   //----------------------------------------------------------------------------
   /*!
@@ -459,8 +497,29 @@ public:
 
   //----------------------------------------------------------------------------
   /*!
+    @brief Loop Green's functions for one integration energy and one core
+    state, for each partial wave (kappa index).
+
+    @details
+    With \f$ \varepsilon \f$ the integration energy and a the core state
+    (see loop_greens):
+    - G_plus: \f$ G(\varepsilon_a + \varepsilon) \f$
+    - G_plus_omega: \f$ G(\varepsilon_a + \varepsilon - \omega) \f$
+    - G_minus: \f$ G(\varepsilon_a - \varepsilon) \f$
+    - G_minus_omega: \f$ G(\varepsilon_a - \varepsilon + \omega) \f$
+  */
+  struct LoopGreens {
+    std::vector<ComplexGMatrix> G_plus;
+    std::vector<ComplexGMatrix> G_plus_omega;
+    std::vector<ComplexGMatrix> G_minus;
+    std::vector<ComplexGMatrix> G_minus_omega;
+  };
+
+  //----------------------------------------------------------------------------
+  /*!
     @brief Perturbed polarisation operator, diagram (b): the polarisation
-    loop with the external field on the line running from vertex 1 to 2.
+    loop with the external field on the line running from vertex 1 to 2;
+    the part from one core state.
 
     @details
     \f[
@@ -488,6 +547,10 @@ public:
     \f$ {\rm Tr}[A_{12}\,(B\,h\,C)_{21}] \f$ (see trace_product,
     perturbed_greens), with angular factor L_ang_dPi.
 
+    This function returns the part of the sum from the single core state
+    a. The sum over a is left to the caller, so that each core state can be
+    done independently.
+
     If h joins a core state to itself, the second and third terms each
     contain a part with \f$ P^a h P^a \f$ (from the core part of the inner
     Green's function), which has the factor \f$ 1/\omega \f$. Only their
@@ -506,8 +569,16 @@ public:
     (e.g., diagonal hyperfine matrix elements).
 
     @param h        External field operator
+    @param ic       Index of the core state a (among the polarised core
+                    states)
     @param epsilon  Complex energy
     @param omega    Frequency of the external field
+    @param G_loop   Loop Green's functions at @p epsilon, for core state a
+                    (see loop_greens). For \f$ \omega - \varepsilon \f$
+                    (as for diagram (c), see dSigma_bc) they are the same
+                    four with their roles swapped
+    @param Pa_h_G   From perturbed_greens_core
+    @param G_h_Pa   From perturbed_greens_core
     @param dV_kappa Core polarisation matrices, from dV_matrices (all
                     empty for none)
 
@@ -521,9 +592,117 @@ public:
           is approximate there.
   */
   LinAlg::Matrix<ComplexRMatrix>
-  dPi_b(const DiracOperator::TensorOperator &h, std::complex<double> epsilon,
-        double omega,
+  dPi_b(const DiracOperator::TensorOperator &h, std::size_t ic,
+        std::complex<double> epsilon, double omega, const LoopGreens &G_loop,
+        const LinAlg::Matrix<ComplexGMatrix> &Pa_h_G,
+        const LinAlg::Matrix<ComplexGMatrix> &G_h_Pa,
         const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dV_kappa) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief The perturbed lines of the polarisation loop that have one end
+    on a core state (see dPi_b): they do not depend on the integration
+    energy.
+
+    @details
+    \f[
+      [P^a\, h\, G(\varepsilon_a - \omega)]
+      \quad{\rm and}\quad
+      [G(\varepsilon_a + \omega)\, h\, P^a] ,
+    \f]
+    (see perturbed_greens) for each polarised core state a and each
+    partial wave of G. Here \f$ G = G^{\rm e} + G^{\rm c} \f$, with a
+    itself left out of \f$ G^{\rm c} \f$ (see dPi_b).
+
+    @param h        External field operator
+    @param omega    Frequency of the external field
+    @param dV_kappa Core polarisation matrices, from dV_matrices
+
+    @return {P^a h G, G h P^a}, each indexed (core state index, kappa index
+    of G); zero where h is zero by selection rules.
+
+    @note Hole-particle (FeynmanOptions): G^e includes the interaction with
+          the hole in a.
+  */
+  std::pair<LinAlg::Matrix<ComplexGMatrix>, LinAlg::Matrix<ComplexGMatrix>>
+  perturbed_greens_core(
+    const DiracOperator::TensorOperator &h, double omega,
+    const LinAlg::Matrix<std::optional<ComplexGMatrix>> &dV_kappa) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief The loop Green's functions (see green_loop) needed for the
+    residues at the pole of core state a, at one integration energy.
+
+    @details
+    The excited parts of \f$ G(\varepsilon_a \pm \varepsilon) \f$ are
+    taken from the stored set (see loop_greens_excited). Those shifted by
+    \f$ \omega \f$ are solved here; for \f$ \omega = 0 \f$ they are the
+    same as the unshifted ones, and nothing is solved.
+
+    @param ie     Index of the integration energy on the frequency grid
+    @param ic     Index of the core state a (among the polarised core
+                  states)
+    @param omega  Frequency of the external field
+
+    @note Hole-particle (FeynmanOptions): the excited parts include the
+          interaction with the hole in a.
+  */
+  LoopGreens loop_greens(std::size_t ie, std::size_t ic, double omega) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Excited Green's functions of the core loops,
+    \f$ G^{\rm e}(\varepsilon_a + \varepsilon) \f$ and
+    \f$ G^{\rm e}(\varepsilon_a - \varepsilon) \f$, for each partial wave.
+
+    @details
+    These do not depend on the valence states, the operator, the
+    frequency of the field, or the diagram. They are taken from the stored
+    set if it has been formed (Feynman::calculate_gex), and are solved
+    here otherwise.
+
+    @param ie  Index of the integration energy on the frequency grid
+    @param ic  Index of the core state a (among the polarised core states)
+
+    @return {G^e(e_a + e), G^e(e_a - e)}, each indexed by kappa index.
+
+    @note Hole-particle (FeynmanOptions): includes the interaction with
+          the hole in a.
+  */
+  std::pair<std::vector<ComplexGMatrix>, std::vector<ComplexGMatrix>>
+  loop_greens_excited(std::size_t ie, std::size_t ic) const;
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Forms the Green's functions of the line between the valence
+    states, at every integration energy, for one matrix element.
+
+    @details
+    \f$ G(\varepsilon_v + \varepsilon) \f$ and
+    \f$ G(\varepsilon_v + \omega + \varepsilon) \f$, for each
+    integration energy \f$ \varepsilon \f$ of the frequency grid and each
+    partial wave. Every diagram needs them, so they are formed once and
+    kept (see line_greens). Those already formed at either energy are
+    re-used; any others are released.
+
+    @param en_v   Energy of the initial state
+    @param omega  Frequency of the external field
+  */
+  void form_line_greens(double en_v, double omega);
+
+  //----------------------------------------------------------------------------
+  /*!
+    @brief Green's functions of the line between the valence states,
+    \f$ G(\varepsilon_n + \varepsilon) \f$, indexed
+    [integration energy index][kappa index].
+
+    @param en  Energy \f$ \varepsilon_n \f$: one of the two energies of
+               the last call to form_line_greens
+
+    @warning form_line_greens must be called first, with this energy.
+  */
+  const std::vector<std::vector<ComplexGMatrix>> &line_greens(double en) const;
 
   //----------------------------------------------------------------------------
   /*!
@@ -739,6 +918,15 @@ private:
   // Complete set of states used to write dV as a matrix (see dV_matrices);
   // formed when first needed
   std::vector<DiracSpinor> m_coordinate_basis{};
+
+  // Green's functions of the line between the valence states, G(en + e),
+  // indexed [integration energy index][kappa index]
+  struct LineGreens {
+    double en;
+    std::vector<std::vector<ComplexGMatrix>> G;
+  };
+  // Those of the matrix element last calculated (see form_line_greens)
+  std::vector<LineGreens> m_line_greens{};
 };
 
 //==============================================================================

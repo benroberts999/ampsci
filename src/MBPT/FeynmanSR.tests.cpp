@@ -172,6 +172,10 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
   const auto &F2s = *wf.getState("2s");
   const auto &F2p = *wf.getState("2p-");
 
+  // Loop Green's functions: the same for every matrix element and diagram.
+  // Optional: otherwise formed by the first diagram that needs them
+  Fy.calculate_gex();
+
   fmt::print("{:3s} {:3s} {:4s} {:>11s} {:>11s} {:>8s}\n", "w", "v", "",
              "Basis", "Feynman", "eps");
 
@@ -204,12 +208,22 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
       Fy.dSigma_bx(h, Fw->kappa(), Fv->kappa(), Fv->en(), omega, dV.get());
     const auto bx_Feynman = *Fw * (dSigma_bx * *Fv);
 
+    // The total: all six diagrams from the one function
+    const auto dSigma_total =
+      Fy.dSigma_total(h, Fw->kappa(), Fv->kappa(), Fv->en(), omega, dV.get());
+    const auto total_Feynman = *Fw * (dSigma_total * *Fv);
+    const auto sum_Feynman =
+      a_Feynman + b_Feynman + c_Feynman + ax_Feynman + bx_Feynman + cx_Feynman;
+    const auto total = a + b + c + ax + bx + cx;
+
     const auto eps_a = std::abs(a_Feynman / a - 1.0);
     const auto eps_b = std::abs(b_Feynman / b - 1.0);
     const auto eps_c = std::abs(c_Feynman / c - 1.0);
     const auto eps_ax = std::abs(ax_Feynman / ax - 1.0);
     const auto eps_bx = std::abs(bx_Feynman / bx - 1.0);
     const auto eps_cx = std::abs(cx_Feynman / cx - 1.0);
+    const auto eps_total = std::abs(total_Feynman / total - 1.0);
+    const auto eps_sum = std::abs(total_Feynman / sum_Feynman - 1.0);
 
     fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n",
                Fw->shortSymbol(), Fv->shortSymbol(), "a", a, a_Feynman, eps_a);
@@ -223,6 +237,9 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
                bx, bx_Feynman, eps_bx);
     fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "cx",
                cx, cx_Feynman, eps_cx);
+    fmt::print("{:3s} {:3s} {:4s} {:+11.4e} {:+11.4e} {:8.1e}\n", "", "", "sum",
+               total, total_Feynman, eps_total);
+    fmt::print("dSigma_total vs sum of the six diagrams: {:.1e}\n", eps_sum);
 
     REQUIRE(eps_a < 0.01);
     REQUIRE(eps_b < 0.01);
@@ -231,5 +248,103 @@ TEST_CASE("FeynSR: diagrams vs Goldstone", "[FeynSR][MBPT][integration]") {
     // (b_x) converges more slowly with the sub-grid
     REQUIRE(eps_bx < 0.05);
     REQUIRE(eps_cx < 0.01);
+    // The diagrams partly cancel in the sum
+    REQUIRE(eps_total < 0.05);
+    REQUIRE(eps_sum < 1.0e-9);
+  }
+}
+
+//==============================================================================
+TEST_CASE("FeynSR: stored loop Greens functions", "[FeynSR][MBPT]") {
+  // The excited Green's functions of the core loops are taken from the
+  // stored set when there is one, and are solved as needed otherwise. The
+  // diagrams must be the same either way.
+  // Static field, and field at the transition frequency
+
+  // Li: Hartree-Fock core, with 2s and 2p valence states
+  Wavefunction wf({1600, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
+                  {"Li", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-14, false);
+  wf.solve_valence("2sp", false);
+
+  const auto h = DiracOperator::E1(wf.grid());
+
+  // Small sub-grid; l <= 2 for the internal lines; hole-particle
+  // interaction included (it is part of the stored Green's functions).
+  // Nothing is written to disk
+  const std::size_t stride = 8;
+  const auto i0 = wf.grid().getIndex(1.0e-3);
+  const auto num_subgrid_points = (wf.grid().getIndex(30.0) - i0) / stride + 1;
+  MBPT::FeynmanOptions options{};
+  options.max_l_internal = 2;
+  options.omre = -std::abs(MBPT::best_omre(wf.core(), wf.valence()));
+  options.hole_particle = MBPT::HoleParticle::include;
+
+  options.store_gex = true;
+  MBPT::FeynmanSR Fy_stored(wf.vHF(), i0, stride, num_subgrid_points, options,
+                            1, false, false, "");
+  options.store_gex = false;
+  MBPT::FeynmanSR Fy_solved(wf.vHF(), i0, stride, num_subgrid_points, options,
+                            1, false, false, "");
+
+  const auto &Fw = *wf.getState("2p-");
+  const auto &Fv = *wf.getState("2s");
+
+  // Forms the stored set (no effect for Fy_solved: store_gex is false)
+  Fy_stored.calculate_gex();
+  Fy_solved.calculate_gex();
+
+  fmt::print("{:4s} {:>9s} {:>12s} {:>12s} {:>8s}\n", "", "omega", "solved",
+             "stored", "eps");
+
+  for (const auto omega : {0.0, Fw.en() - Fv.en()}) {
+
+    const auto [b_solved, c_solved] =
+      Fy_solved.dSigma_bc(h, Fw.kappa(), Fv.kappa(), Fv.en(), omega);
+    const auto [ax_solved, cx_solved] =
+      Fy_solved.dSigma_ax_cx(h, Fw.kappa(), Fv.kappa(), Fv.en(), omega);
+    const auto bx_solved =
+      Fy_solved.dSigma_bx(h, Fw.kappa(), Fv.kappa(), Fv.en(), omega);
+
+    const auto [b_stored, c_stored] =
+      Fy_stored.dSigma_bc(h, Fw.kappa(), Fv.kappa(), Fv.en(), omega);
+    const auto [ax_stored, cx_stored] =
+      Fy_stored.dSigma_ax_cx(h, Fw.kappa(), Fv.kappa(), Fv.en(), omega);
+    const auto bx_stored =
+      Fy_stored.dSigma_bx(h, Fw.kappa(), Fv.kappa(), Fv.en(), omega);
+
+    const auto b_1 = Fw * (b_solved * Fv);
+    const auto b_2 = Fw * (b_stored * Fv);
+    const auto c_1 = Fw * (c_solved * Fv);
+    const auto c_2 = Fw * (c_stored * Fv);
+    const auto ax_1 = Fw * (ax_solved * Fv);
+    const auto ax_2 = Fw * (ax_stored * Fv);
+    const auto cx_1 = Fw * (cx_solved * Fv);
+    const auto cx_2 = Fw * (cx_stored * Fv);
+    const auto bx_1 = Fw * (bx_solved * Fv);
+    const auto bx_2 = Fw * (bx_stored * Fv);
+
+    const auto eps_b = std::abs(b_2 / b_1 - 1.0);
+    const auto eps_c = std::abs(c_2 / c_1 - 1.0);
+    const auto eps_ax = std::abs(ax_2 / ax_1 - 1.0);
+    const auto eps_cx = std::abs(cx_2 / cx_1 - 1.0);
+    const auto eps_bx = std::abs(bx_2 / bx_1 - 1.0);
+
+    fmt::print("{:4s} {:9.6f} {:+12.5e} {:+12.5e} {:8.1e}\n", "b", omega, b_1,
+               b_2, eps_b);
+    fmt::print("{:4s} {:9.6f} {:+12.5e} {:+12.5e} {:8.1e}\n", "c", omega, c_1,
+               c_2, eps_c);
+    fmt::print("{:4s} {:9.6f} {:+12.5e} {:+12.5e} {:8.1e}\n", "ax", omega, ax_1,
+               ax_2, eps_ax);
+    fmt::print("{:4s} {:9.6f} {:+12.5e} {:+12.5e} {:8.1e}\n", "cx", omega, cx_1,
+               cx_2, eps_cx);
+    fmt::print("{:4s} {:9.6f} {:+12.5e} {:+12.5e} {:8.1e}\n", "bx", omega, bx_1,
+               bx_2, eps_bx);
+
+    REQUIRE(eps_b < 1.0e-9);
+    REQUIRE(eps_c < 1.0e-9);
+    REQUIRE(eps_ax < 1.0e-9);
+    REQUIRE(eps_cx < 1.0e-9);
+    REQUIRE(eps_bx < 1.0e-9);
   }
 }

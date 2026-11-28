@@ -9,6 +9,7 @@
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
+#include "qip/String.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -30,6 +31,9 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
     {"rpa", "RPA for the internal operator line: true(=TDHF), false, TDHF, "
             "basis, diagram [false]"},
     {"rpa_omega", "Frequency the RPA is solved at [0.0]"},
+    {"omega", "Text or number. Frequency of the external field in the "
+              "diagrams. 'each': the transition frequency of each matrix "
+              "element [each]"},
     {"stride", "stride [such that ~150 points between r0 and rmax]"},
     {"n_min_core", "Minimum core state [1]"},
     {"rmax", "Maximum r value [40]"},
@@ -79,6 +83,12 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto hole_particle = input.get("hole_particle", false);
   const auto both_orders = input.get("both_orders", false);
 
+  // Frequency of the external field in the diagrams: that of each
+  // transition, or the same fixed value for every matrix element
+  const auto omega_text = input.get<std::string>("omega", "each");
+  const bool each_omega = qip::ci_compare(omega_text, "each");
+  const auto fixed_omega = each_omega ? 0.0 : input.get("omega", 0.0);
+
   // Real part of the frequency contour, chosen as for the Correlations
   // Feynman: with hole-particle, the loop poles lie closer to zero
   const auto hp_excitation =
@@ -110,6 +120,14 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nStructure radiation, broken up by Feynman diagram: "
             << h->name() << "\n";
   std::cout << "Reduced matrix elements <w||h||v> (" << h->units() << ")\n";
+  if (each_omega) {
+    std::cout << "Frequency: w = e_w - e_v, for each matrix element\n";
+  } else {
+    std::cout << "Constant frequency: w = " << fixed_omega << "\n";
+  }
+
+  // Loop Green's functions: the same for every matrix element
+  Fyn.calculate_gex();
 
   // Values are printed as +d.[n_digits]e-xx
   const int n_digits = 3;
@@ -134,7 +152,7 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto &w = valence[iw];
       if (h->isZero(w.kappa(), v.kappa()))
         continue;
-      const auto omega = w.en() - v.en();
+      const auto omega = each_omega ? w.en() - v.en() : fixed_omega;
 
       fmt::print("{:5s} {:5s}", w.shortSymbol(), v.shortSymbol());
       std::cout << std::flush;
